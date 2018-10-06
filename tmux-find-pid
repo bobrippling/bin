@@ -1,0 +1,34 @@
+#!/bin/sh
+
+if test $# -ne 1
+then
+	echo "Usage: $0 pid" >&2
+	exit 2
+fi
+
+pid_parent(){
+	ps -o pid,ppid | grep "^ *$1" | awk '{print $2}'
+}
+
+pid="$1"
+search_pid="$pid"
+tmux_pid="$(tmux display-message -p '#{pid}')"
+
+while :
+do
+	parent=$(pid_parent "$pid")
+	if test "$parent" == "$tmux_pid"
+	then
+		break
+	elif test -z "$parent"
+	then
+		echo "pid $search_pid not found as a descendant of tmux process $tmux_pid" >&2
+		exit 1
+	fi
+
+	pid="$parent"
+done
+
+tmux lsp -a -F '#{pane_pid} #{session_name}:#{window_index}.#{pane_index} #{window_name}' \
+	| grep "^$pid" \
+	| sed 's/^[^ ]* //'
