@@ -1,0 +1,16 @@
+#!/bin/sh
+
+if test $# -ne 1
+then
+	echo "Usage: $0 fingerprint" >&2
+	exit 1
+fi
+
+keys(){
+	ssh-keygen -f "$1" -l || :
+}
+
+{
+	keys /etc/ssh/ssh_known_hosts
+	keys ~/.ssh/known_hosts
+} | grep -F -- "$@"

@@ -1,0 +1,14 @@
+#!/bin/sh
+
+u2(){
+	nl | sort -k2 | uniq -f1 | sort -n | cut -f2-
+}
+
+if test $# -ne 0
+then
+	for arg
+	do u2 < "$arg"
+	done
+else
+	u2
+fi

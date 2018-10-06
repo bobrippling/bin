@@ -1,0 +1,112 @@
+#!/bin/sh
+
+usage(){
+	cat >&2 <<!
+Usage: $0 [-n] [ + | - | t[oggle] | l[ist] | volume-to-set ]
+!
+	exit 2
+}
+
+get_active_dev(){
+	while read line
+	do
+		#echo >&2 ">>> $line"
+		if echo "$line" | grep '^Simple mixer control' >/dev/null
+		then
+			d="${line#Simple mixer control '*}"
+			d="${d%'*}"
+
+			# ignore master control
+			if test "$d" = Master
+			then d=
+			fi
+		elif test -n "$d" && echo "$line" | grep '\[on\]$' >/dev/null
+		then
+			echo "$d"
+			return
+		fi
+	done <<!
+$(amixer)
+!
+
+	echo >&2 "$0: can't find active device"
+	exit 1
+}
+
+mixer(){
+	$cmd_pre amixer -c 0 "$@"
+}
+
+list(){
+	for d in $devices
+	do
+		if mixer get $d | tail -1 | grep '\[on\]$' > /dev/null
+		then x='*'
+		else x=-
+		fi
+		echo "$x $d"
+	done
+}
+
+vol_get(){
+	mixer $pre get $dev_vol | tail -1 | sed 's/.*\[\([0-9]*\)%\].*/\1/'
+}
+
+vol_set(){
+	mixer $pre set $dev_vol "$1%" >/dev/null
+}
+
+vol_dec(){
+	mixer $pre set $dev_vol "1%-" >/dev/null
+}
+
+vol_inc(){
+	mixer $pre set $dev_vol "1%+" >/dev/null
+}
+
+swap_mute(){
+	for d in $devices
+	do mixer set $d toggle >/dev/null
+	done
+}
+
+interactive(){
+	stty -echo -icanon
+	while :
+	do
+		printf '%d%%  \r' "$(vol_get)"
+		ch="$(head -c1)"
+		case "$ch" in
+			k) vol_inc ;;
+			j) vol_dec ;;
+			q|) break ;;
+		esac
+	done
+}
+
+if [ "$1" = '-n' ]
+then
+	cmd_pre='echo '
+	shift
+fi
+
+dev_vol=Master #"$(get_active_dev)"
+devices='Headphone Front'
+
+if test $# -eq 0
+then
+	vol_get
+elif test $# -eq 1
+then
+	case "$1" in
+		-i) interactive ;;
+		[0-9]|[0-9][0-9]|[0-9][0-9][0-9]) vol_set "$1" ;;
+		t|to|tog|togg|toggl|toggle) swap_mute ;;
+		l|li|lis|list) list ;;
+		-) vol_dec ;;
+		+) vol_inc ;;
+		*) usage ;;
+	esac
+else
+	usage
+fi
