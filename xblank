@@ -1,0 +1,12 @@
+#!/bin/sh
+
+if test $# -eq 1 && test "$1" = off
+then
+	xset dpms force on
+	xset s reset
+elif test $# -eq 0
+then
+	xset dpms force off
+else
+	echo >&2 "Usage: $0 [off]"
+fi

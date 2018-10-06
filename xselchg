@@ -1,0 +1,44 @@
+#!/bin/sh
+
+usage(){
+	cat >&2 <<!
+Usage: $0 [cmd]
+!
+	exit 1
+}
+
+if test $# -eq 1
+then
+	cmd="$1"
+elif test $# -ne 0
+then
+	usage
+fi
+
+if test -z "$cmd"
+then
+	case "$(uname -s)" in
+		Linux)
+			cmd="xsel -o"
+			;;
+		Darwin)
+			cmd=pbpaste
+			;;
+		*)
+			echo >&2 "$0: unknown system $(uname -a)"
+			exit 1
+	esac
+fi
+
+text=
+while :
+do
+	new=$($cmd)
+	if [ "$new" != "$text" ]
+	then
+		text="$new"
+		echo $text
+	fi
+
+	perl -e 'select undef, undef, undef, 0.2';
+done
