@@ -15,10 +15,13 @@ then
 fi
 
 keys(){
-	ssh-keygen -f "$1" -l -E "$hash"
+	for arg
+	do test -f "$arg" && ssh-keygen -f "$arg" -l -E "$hash"
+	done
 }
 
 {
-	keys /etc/ssh/ssh_known_hosts
 	keys ~/.ssh/known_hosts
-} | grep -F -- "$@"
+	keys /etc/ssh/ssh_known_hosts
+	keys /etc/ssh/ssh_host_*_key.pub
+} | grep -F -- "$1"
