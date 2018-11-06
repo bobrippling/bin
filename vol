@@ -74,11 +74,12 @@ interactive(){
 	stty -echo -icanon
 	while :
 	do
-		printf '%d%%  \r' "$(vol_get)"
+		printf '%d%% %s\33[K\r' "$(vol_get)" "$(list | grep '^\*' | cut -b3-)"
 		ch="$(head -c1)"
 		case "$ch" in
 			k) vol_inc ;;
 			j) vol_dec ;;
+			t) swap_mute ;;
 			q|) break ;;
 		esac
 	done
