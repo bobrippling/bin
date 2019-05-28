@@ -1,0 +1,13 @@
+#!/bin/sh
+
+# from this talk https://www.reddit.com/r/vim/comments/ac9eyh/talk_i_gave_on_going_mouseless_with_vim_tmux/
+
+if test $# -ne 0
+then
+	echo "Usage: $0" >&2
+	exit 2
+fi
+
+printf '\x1b\x1b]52;c;'
+base64
+printf '\7\x1b\\'
