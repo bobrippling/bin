@@ -6,4 +6,8 @@ then
 	exit 2
 fi
 
+# win32yank -o / -i
+# pbpaste / pbcopy
+# xsel -o / -i
+
 exec xsel -i
