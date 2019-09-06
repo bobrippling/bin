@@ -15,7 +15,7 @@ then
 fi
 
 cd ~/.password-store/
-ents=$(find */ ! -type d | sed '/^\./d; s/\.gpg$//' | grep "$@")
+ents=$(find */ ! -type d | sed '/^\./d; s/\.gpg$//; s/\/\//\//' | grep "$@")
 if test -z "$ents"
 then
 	echo >&2 "$0: no matches"
