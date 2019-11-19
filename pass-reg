@@ -10,7 +10,7 @@ fi
 
 dry=no
 clear=yes
-while test $# -gt 2
+while test $# -gt 1
 do
 	case "$1" in
 		-n)
