@@ -58,7 +58,7 @@ then
 else
 	if test $dry = no
 	then
-		echo "pass show $ents"
+		echo "pass show $ents" >&2
 		pass show "$ents"
 		if test $clear = yes
 		then wait_and_clear
