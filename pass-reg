@@ -2,14 +2,14 @@
 
 if test $# -eq 0
 then
-	echo "Usage: $0 [-n] [-C] [grep args]" >&2
+	echo "Usage: $0 [-n] [-c] [grep args]" >&2
 	echo "-n: no-op" >&2
-	echo "-C: don't clear the screen after a delay" >&2
+	echo "-c: clear the screen after a delay" >&2
 	exit 2
 fi
 
 dry=no
-clear=yes
+clear=no
 while test $# -gt 1
 do
 	case "$1" in
@@ -20,11 +20,11 @@ do
 			dry=yes
 			shift
 			;;
-		-C)
-			if test $clear = no
+		-c)
+			if test $clear = yes
 			then break # argument for grep
 			fi
-			clear=no
+			clear=yes
 			shift
 			;;
 		*)
