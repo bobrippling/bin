@@ -1,72 +1,88 @@
 #!/bin/sh
 
+set -e
+
 usage(){
 	cat >&2 <<!
-Usage: $0 [-n] [ + | - | t[oggle] | l[ist] | volume-to-set ]
+Usage: $0 [ + | - | t[oggle] | l[ist] | volume-to-set ]
 !
 	exit 2
 }
 
 get_active_dev(){
-	while read line
-	do
-		#echo >&2 ">>> $line"
-		if echo "$line" | grep '^Simple mixer control' >/dev/null
-		then
-			d="${line#Simple mixer control '*}"
-			d="${d%'*}"
+	# return the first '[on]' device
 
-			# ignore master control
-			if test "$d" = Master
-			then d=
-			fi
-		elif test -n "$d" && echo "$line" | grep '\[on\]$' >/dev/null
+	while read d
+	do
+		# ignore master control
+		if test "$d" = Master
+		then continue
+		fi
+
+		contents=$(amixer get "$d")
+		if echo "$contents" | grep 'Playback channels' >/dev/null \
+			&& echo "$contents" | grep '\[on\]$' >/dev/null
 		then
 			echo "$d"
 			return
 		fi
 	done <<!
-$(amixer)
+$devices
 !
+
+	# none found, try Master
+	d=Master
+	if amixer get "$d" >/dev/null
+	then
+		echo "$d"
+		return
+	fi
 
 	echo >&2 "$0: can't find active device"
 	exit 1
 }
 
-mixer(){
-	$cmd_pre amixer -c 0 "$@"
-}
-
 list(){
-	for d in $devices
+	echo "$devices" | while read d
 	do
-		if mixer get $d | tail -1 | grep '\[on\]$' > /dev/null
-		then x='*'
-		else x=-
+		contents=$(amixer get "$d")
+
+		# playback only:
+		if ! echo "$contents" | grep 'Playback channels:' >/dev/null
+		then continue
 		fi
-		echo "$x $d"
+		if ! echo "$contents" | grep pvolume >/dev/null
+		then continue
+		fi
+
+		if echo "$contents" | grep '\[on\]$' >/dev/null
+		then desc='*'
+		else desc='-'
+		fi
+
+		echo "$desc $d"
 	done
 }
 
 vol_get(){
-	mixer $pre get $dev_vol | tail -1 | sed 's/.*\[\([0-9]*\)%\].*/\1/'
+	amixer get $dev_default | tail -1 | sed 's/.*\[\([0-9]*\)%\].*/\1/'
 }
 
 vol_set(){
-	mixer $pre set $dev_vol "$1%" >/dev/null
+	amixer set $dev_default "$1%" >/dev/null
 }
 
 vol_dec(){
-	mixer $pre set $dev_vol "1%-" >/dev/null
+	amixer set $dev_default "1%-" >/dev/null
 }
 
 vol_inc(){
-	mixer $pre set $dev_vol "1%+" >/dev/null
+	amixer set $dev_default "1%+" >/dev/null
 }
 
 swap_mute(){
-	for d in $devices
-	do mixer set $d toggle >/dev/null
+	echo "$devices" | while read d
+	do amixer set $d toggle >/dev/null
 	done
 }
 
@@ -85,14 +101,18 @@ interactive(){
 	done
 }
 
-if [ "$1" = '-n' ]
-then
-	cmd_pre='echo '
-	shift
-fi
+#dev_default=Master
+#devices='Headphone Front'
 
-dev_vol=Master #"$(get_active_dev)"
-devices='Headphone Front'
+# $devices may contain spaces - must read via `echo | while read`
+devices=$(amixer scontrols | cut -d"'" -f2)
+dev_default=$(get_active_dev)
+
+if test -n "$VOL_DEBUG" && test "$VOL_DEBUG" != 0
+then
+	echo "devices (default '$dev_default'):"
+	echo "$devices" | sed 's/^/  /'
+fi >&2
 
 if test $# -eq 0
 then
