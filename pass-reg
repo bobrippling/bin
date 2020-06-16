@@ -3,9 +3,23 @@
 if test $# -eq 0
 then
 	echo "Usage: $0 [-n] [-c] [grep args]" >&2
+	echo "       $0 -l" >&2
 	echo "-n: no-op" >&2
 	echo "-c: clear the screen after a delay" >&2
+	echo >&2
+	echo "-l: list directories" >&2
 	exit 2
+fi
+
+if test "$1" = -l
+then
+	shift
+	if test $# -ne 0
+	then usage
+	fi
+
+	find ~/.password-store/* -type d | sed 's;.*password-store/;;'
+	exit $?
 fi
 
 dry=no
