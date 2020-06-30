@@ -63,26 +63,35 @@ list(){
 	if test $pulse -eq 1
 	then
 		pactl list sinks \
-			| grep -E '^\s*(Description|Mute):' \
-			| while read line
-				do
-					if test -z "$desc"
-					then
-						desc=$(echo $line | sed '
-							s/Description: \(.*\)/\1/;
-							s/.*\.\([^.]*\)\.[^.]*$/\1/;
-							s/^_*//;
-							s/_/ /g;
+			| sed -n '
+				: a;
+				/^[ \t]*\(Name\|Description\|Mute\):/ {
+					/Description:/ {
+						s/[^:]*: //;
+						h;
+						n;
+						b a;
+					};
 
-							# filters
-							/hdmi/Id
-						')
-					else
-						if test $(echo $line | sed -n 's/Mute: \(.*\)/\1/p') = no
-						then echo "* $desc"
-						else echo "- $desc"
-						fi
-						desc=
+					/Mute/ {
+						s/[^:]*: //;
+						p;
+						g;
+					}
+
+					s/[^:]*: //;
+					p;
+				}
+			' \
+			| while read name && read mute && read desc
+				do
+					if ! echo "$devices" | grep -F "$name" >/dev/null
+					then continue
+					fi
+
+					if test "$mute" = no
+					then echo "* $desc"
+					else echo "- $desc"
 					fi
 				done
 		return
@@ -222,7 +231,12 @@ init_alsa(){
 
 init_pulse(){
 	# $devices may contain spaces - must read via `echo | while read`
-	devices=$(pactl list sinks | sed -n 's/.*Name: \(.*\)/\1/p' )
+	devices=$(pactl list sinks | sed -n '
+		# filters
+		/hdmi/Id;
+
+		s/.*Name: \(.*\)/\1/p;
+	')
 	dev_default=$(get_active_dev)
 	dev_on_all=yes
 }
