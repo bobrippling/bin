@@ -73,6 +73,9 @@ list(){
 							s/.*\.\([^.]*\)\.[^.]*$/\1/;
 							s/^_*//;
 							s/_/ /g;
+
+							# filters
+							/hdmi/Id
 						')
 					else
 						if test $(echo $line | sed -n 's/Mute: \(.*\)/\1/p') = no
