@@ -5,12 +5,29 @@ set -e
 usage(){
 	cat >&2 <<!
 Usage: $0 [ + | - | t[oggle] | l[ist] | volume-to-set ]
+
+Environment:
+	VOL_PA=0: Force off pulseaudio
+	VOL_DEBUG=1: Emit debugging info
 !
 	exit 2
 }
 
+mixer(){
+	if test -n "$VOL_CARD"
+	then amixer -c "$VOL_CARD" "$@"
+	else amixer                "$@"
+	fi
+}
+
 get_active_dev(){
 	# return the first '[on]' device
+
+	if test $pulse -eq 1
+	then
+		pactl info | sed -n 's/Default Sink: \(.*\)/\1/p'
+		return
+	fi
 
 	while read d
 	do
@@ -19,7 +36,7 @@ get_active_dev(){
 		then continue
 		fi
 
-		contents=$(amixer get "$d")
+		contents=$(mixer get "$d")
 		if echo "$contents" | grep 'Playback channels' >/dev/null \
 			&& echo "$contents" | grep '\[on\]$' >/dev/null
 		then
@@ -32,7 +49,7 @@ $devices
 
 	# none found, try Master
 	d=Master
-	if amixer get "$d" >/dev/null
+	if mixer get "$d" >/dev/null
 	then
 		echo "$d"
 		return
@@ -43,9 +60,34 @@ $devices
 }
 
 list(){
+	if test $pulse -eq 1
+	then
+		pactl list sinks \
+			| grep -E '^\s*(Description|Mute):' \
+			| while read line
+				do
+					if test -z "$desc"
+					then
+						desc=$(echo $line | sed '
+							s/Description: \(.*\)/\1/;
+							s/.*\.\([^.]*\)\.[^.]*$/\1/;
+							s/^_*//;
+							s/_/ /g;
+						')
+					else
+						if test $(echo $line | sed -n 's/Mute: \(.*\)/\1/p') = no
+						then echo "* $desc"
+						else echo "- $desc"
+						fi
+						desc=
+					fi
+				done
+		return
+	fi
+
 	echo "$devices" | while read d
 	do
-		contents=$(amixer get "$d")
+		contents=$(mixer get "$d")
 
 		# playback only:
 		if ! echo "$contents" | grep 'Playback channels:' >/dev/null
@@ -64,25 +106,81 @@ list(){
 	done
 }
 
+vol_get_1(){
+	if test $pulse -eq 1
+	then
+		pactl list sinks \
+			| grep -E '^\s*(Name|Volume):' \
+			| while read line
+				do
+					name=$(echo $line | sed 's/Name: \(.*\)/\1/')
+					if test "$name" = "$1"
+					then
+						show_next=1
+						continue
+					fi
+
+					if test "$show_next" = 1
+					then
+						echo "$line" | grep -o '[0-9]\+%' | head -1
+						break
+					fi
+				done
+		return
+	fi
+
+	mixer get $1 | tail -1 | sed 's/.*\[\([0-9]*\)%\].*/\1/'
+}
+
+vol_set_1(){
+	vol=$1
+	dev=$2
+
+	if test $pulse -eq 1
+	then pactl set-sink-volume "$dev" "$vol%"
+	else mixer set $dev "$vol%" >/dev/null
+	fi
+}
+
+vol_dec_1(){
+	if test $pulse -eq 1
+	then pactl set-sink-volume "$1" "-1%"
+	else mixer set $1 "1%-" >/dev/null
+	fi
+}
+
+vol_inc_1(){
+	if test $pulse -eq 1
+	then pactl set-sink-volume "$1" "+1%"
+	else mixer set $1 "1%+" >/dev/null
+	fi
+}
+
 vol_get(){
-	amixer get $dev_default | tail -1 | sed 's/.*\[\([0-9]*\)%\].*/\1/'
+	for_devices vol_get_1
 }
 
 vol_set(){
-	amixer set $dev_default "$1%" >/dev/null
+	for_devices vol_set_1 "$1"
 }
 
 vol_dec(){
-	amixer set $dev_default "1%-" >/dev/null
+	for_devices vol_dec_1
 }
 
 vol_inc(){
-	amixer set $dev_default "1%+" >/dev/null
+	for_devices vol_inc_1
 }
 
 swap_mute(){
 	echo "$devices" | while read d
-	do amixer set $d toggle >/dev/null
+	do
+		if test $pulse -eq 1
+		then
+			pactl set-sink-mute "$d" toggle
+		else
+			mixer set $d toggle >/dev/null
+		fi
 	done
 }
 
@@ -90,23 +188,57 @@ interactive(){
 	stty -echo -icanon
 	while :
 	do
-		printf '%d%% %s\33[K\r' "$(vol_get)" "$(list | grep '^\*' | cut -b3-)"
+		printf '%d%% %s\33[K\r' "$(vol_get_1 "$dev_default")" "$(list | grep '^\*' | cut -b3-)"
 		ch="$(head -c1)"
 		case "$ch" in
-			k) vol_inc ;;
-			j) vol_dec ;;
+			k) vol_inc_1 "$dev_default" ;;
+			j) vol_dec_1 "$dev_default" ;;
 			t) swap_mute ;;
 			q|) break ;;
 		esac
 	done
 }
 
+for_devices(){
+	if test "$dev_on_all" = yes
+	then
+		echo "$devices" | while read d
+		do "$@" "$d"
+		done
+	else
+		"$@" "$d"
+	fi
+}
+
+init_alsa(){
+	# $devices may contain spaces - must read via `echo | while read`
+	devices=$(mixer scontrols | cut -d"'" -f2 | sed '/Capture/d')
+	dev_default=$(get_active_dev)
+	dev_on_all=yes
+}
+
+init_pulse(){
+	# $devices may contain spaces - must read via `echo | while read`
+	devices=$(pactl list sinks | sed -n 's/.*Name: \(.*\)/\1/p' )
+	dev_default=$(get_active_dev)
+	dev_on_all=yes
+}
+
+init(){
+	if test $pulse -eq 0
+	then init_alsa
+	else init_pulse
+	fi
+}
+
 #dev_default=Master
 #devices='Headphone Front'
 
-# $devices may contain spaces - must read via `echo | while read`
-devices=$(amixer scontrols | cut -d"'" -f2)
-dev_default=$(get_active_dev)
+if test "$VOL_PA" = 0 || !pactl info >/dev/null 2>&1
+then pulse=0
+else pulse=1
+fi
+init
 
 if test -n "$VOL_DEBUG" && test "$VOL_DEBUG" != 0
 then
