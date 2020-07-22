@@ -4,7 +4,15 @@ set -e
 
 usage(){
 	cat >&2 <<!
-Usage: $0 [ + | - | t[oggle] | l[ist] | volume-to-set ]
+Usage: $0 [ + | - | volume-to-set | <command> ]
+
+Commands:
+	t[oggle]
+	l[ist]
+
+Pulse-Commands:
+	outputs
+	s[elect-output] [--watch] {output}
 
 Environment:
 	VOL_PA=0: Force off pulseaudio
@@ -62,6 +70,7 @@ $devices
 list(){
 	if test $pulse -eq 1
 	then
+		i=0
 		pactl list sinks \
 			| sed -n '
 				: a;
@@ -89,6 +98,12 @@ list(){
 					then continue
 					fi
 
+					if test "$1" = --enumerate
+					then
+						printf '%d ' $i
+						i=$(expr $i + 1)
+					fi
+
 					if test "$mute" = no
 					then echo "* $desc"
 					else echo "- $desc"
@@ -107,6 +122,12 @@ list(){
 		fi
 		if ! echo "$contents" | grep pvolume >/dev/null
 		then continue
+		fi
+
+		if test "$1" = --enumerate
+		then
+			printf '%d ' $i
+			i=$(expr $i + 1)
 		fi
 
 		if echo "$contents" | grep '\[on\]$' >/dev/null
@@ -211,6 +232,49 @@ interactive(){
 	done
 }
 
+outputs_show(){
+	list --enumerate
+}
+
+outputs_select(){
+	watch=0
+	i=
+	for arg in "$@"
+	do
+		if test "$1" = --watch
+		then
+			watch=1
+			shift
+		elif test -z "$i"
+		then
+			i="$1"
+		else
+			usage
+		fi
+	done
+
+	if test -z "$i" || echo "$i" | grep '[^0-9]' >/dev/null
+	then
+		echo >&2 "select-output needs a number (not \"$i\")"
+		usage
+	fi
+
+	while :
+	do
+		pactl list \
+			| sed -n 's/^Sink Input #\(.*\)/\1/p' \
+			| while read input
+			do
+				pactl move-sink-input "$input" "$i"
+			done
+
+		if test $watch -eq 0
+		then break
+		fi
+		sleep 1
+	done
+}
+
 for_devices(){
 	if test "$dev_on_all" = yes
 	then
@@ -275,8 +339,15 @@ then
 		l|li|lis|list) list ;;
 		-) vol_dec ;;
 		+) vol_inc ;;
+		outputs) outputs_show ;;
 		*) usage ;;
 	esac
 else
-	usage
+	case "$1" in
+		s|se|sel|select-output)
+			shift
+			outputs_select "$@"
+			;;
+		*) usage ;;
+	esac
 fi
