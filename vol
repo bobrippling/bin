@@ -11,7 +11,7 @@ Commands:
 	l[ist]
 
 Pulse-Commands:
-	outputs
+	o[utputs]
 	s[elect-output] [--watch] {output}
 
 Environment:
@@ -339,7 +339,7 @@ then
 		l|li|lis|list) list ;;
 		-) vol_dec ;;
 		+) vol_inc ;;
-		outputs) outputs_show ;;
+		o|ou|outs|outputs) outputs_show ;;
 		*) usage ;;
 	esac
 else
