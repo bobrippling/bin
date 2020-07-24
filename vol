@@ -70,17 +70,20 @@ $devices
 list(){
 	if test $pulse -eq 1
 	then
-		i=0
 		pactl list sinks \
 			| sed -n '
 				: a;
+				/^Sink #\(\d*\)/ {
+					s/.*#\(.*\)/\1/;
+					p;
+				}
 				/^[ \t]*\(Name\|Description\|Mute\):/ {
 					/Description:/ {
 						s/[^:]*: //;
 						h;
 						n;
 						b a;
-					};
+					}
 
 					/Mute/ {
 						s/[^:]*: //;
@@ -92,7 +95,7 @@ list(){
 					p;
 				}
 			' \
-			| while read name && read mute && read desc
+			| while read index && read name && read mute && read desc
 				do
 					if ! echo "$devices" | grep -F "$name" >/dev/null
 					then continue
@@ -100,8 +103,7 @@ list(){
 
 					if test "$1" = --enumerate
 					then
-						printf '%d ' $i
-						i=$(expr $i + 1)
+						printf '%d ' $index
 					fi
 
 					if test "$mute" = no
@@ -112,6 +114,7 @@ list(){
 		return
 	fi
 
+	i=0
 	echo "$devices" | while read d
 	do
 		contents=$(mixer get "$d")
