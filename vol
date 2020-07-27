@@ -224,7 +224,7 @@ interactive(){
 	stty -echo -icanon
 	while :
 	do
-		printf '%d%% %s\33[K\r' "$(vol_get_1 "$dev_default")" "$(list | grep '^\*' | cut -b3-)"
+		printf '%s %s\33[K\r' "$(vol_get_1 "$dev_default")" "$(list | grep '^\*' | cut -b3- | tr '\n' ', ')"
 		ch="$(head -c1)"
 		case "$ch" in
 			k) vol_inc_1 "$dev_default" ;;
