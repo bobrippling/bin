@@ -256,10 +256,30 @@ outputs_select(){
 		fi
 	done
 
-	if test -z "$i" || echo "$i" | grep '[^0-9]' >/dev/null
+	if test -z "$i"
 	then
-		echo >&2 "select-output needs a number (not \"$i\")"
+		echo >&2 "select-output needs an argument"
 		usage
+	fi
+
+	if echo "$i" | grep '[^0-9]' >/dev/null
+	then
+		re="$i"
+		ents=$(list --enumerate | grep -iE "$re" || :)
+
+		if test -z "$ents"
+		then
+			echo >&2 "No outputs matching /$re/ found"
+			exit 1
+		fi
+		if test $(echo "$ents" | wc -l) -ne 1
+		then
+			echo "Too many outputs matching /$re/:" >&2
+			echo "$ents" | sed 's/^[^ ]* //' >&2
+			exit 1
+		fi
+
+		i=$(echo "$ents" | sed 's/ .*//')
 	fi
 
 	while :
