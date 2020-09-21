@@ -2,10 +2,11 @@
 
 if test $# -eq 0
 then
-	echo "Usage: $0 [-n] [-c] [grep args]" >&2
+	echo "Usage: $0 [-n] [-c] [-e] [grep args]" >&2
 	echo "       $0 -l" >&2
 	echo "-n: no-op" >&2
 	echo "-c: clear the screen after a delay" >&2
+	echo "-e: edit" >&2
 	echo >&2
 	echo "-l: list directories" >&2
 	exit 2
@@ -24,6 +25,7 @@ fi
 
 dry=no
 clear=no
+subcmd="show"
 while test $# -gt 1
 do
 	case "$1" in
@@ -39,6 +41,10 @@ do
 			then break # argument for grep
 			fi
 			clear=yes
+			shift
+			;;
+		-e)
+			subcmd=edit
 			shift
 			;;
 		*)
@@ -72,8 +78,8 @@ then
 else
 	if test $dry = no
 	then
-		echo "pass show $ents" >&2
-		pass show "$ents"
+		echo "pass $subcmd $ents" >&2
+		pass $subcmd "$ents"
 		if test $clear = yes
 		then wait_and_clear
 		fi
