@@ -1,0 +1,33 @@
+#!/bin/sh
+
+set -e
+
+if test $# -ne 1
+then
+	echo "Usage: $0 name" >&2
+	exit 2
+fi
+
+if pass git diff | grep . >/dev/null
+then
+	echo >&2 "pass repo in modified state, aborting"
+	exit 1
+fi
+
+name="$1"
+f=/dev/shm/pass-gen.$$.txt
+
+trap "rm -f '$f'" EXIT
+
+(
+	pass generate "$name" 20 | tail -1
+	echo
+) >"$f"
+
+echo "generated, launching ed..."
+ed "$f"
+
+pass insert \
+	--multiline \
+	"$name" \
+	< "$f"
