@@ -20,7 +20,7 @@ f=/dev/shm/pass-gen.$$.txt
 trap "rm -f '$f'" EXIT
 
 (
-	pass generate "$name" 20 | tail -1
+	pass generate "$name" 20 | tail -1 | sed 's/\x1b\[[^m]*m//g'
 	echo
 ) >"$f"
 
