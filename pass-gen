@@ -24,6 +24,8 @@ trap "rm -f '$f'" EXIT
 	echo
 ) >"$f"
 
+pass git reset --quiet --hard HEAD^
+
 echo "generated, launching ed..."
 ed "$f"
 
