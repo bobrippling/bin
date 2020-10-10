@@ -1,26 +1,55 @@
 #!/bin/sh
 
 usage(){
-	echo >&2 "Usage: $0 [-p]"
+	echo >&2 "Usage: $0 [-p] [-u file]"
 	echo >&2 " -p: dump processes too"
+	echo >&2 " -u: show update compared to file"
 	exit 2
 }
 
 proc=0
+update_file=
 while test $# -ne 0
 do
 	if test "$1" = -p
 	then proc=1
+	elif test "$1" = -u
+	then
+		shift
+		update_file="$1"
+		if test -z "$update_file"
+		then usage
+		fi
 	else usage
 	fi
 	shift
 done
+
+strip_proc(){
+	sed -n '/^ *PID/q; p'
+}
 
 fmt_pre='#{session_name}:#{window_index}.#{pane_index} #{window_name}'
 fmt_post=' cmd=#{pane_current_command} path=#{pane_current_path}'
 fmt_mid=
 if test $proc -ne 0
 then fmt_mid=' pid=#{pane_pid}'
+fi
+
+if test -n "$update_file"
+then
+	t=/tmp/tmux-pane-cmp-$$
+	trap "rm -f '$t'" EXIT
+
+	strip_proc < "$update_file" > "$t"
+
+	arg=
+	if test $proc -ne 0
+	then arg=-p
+	fi
+	"$0" $arg | strip_proc | diff -u "$t" -
+
+	exit 0
 fi
 
 tmux lsp -aF "$fmt_pre$fmt_mid$fmt_post"
