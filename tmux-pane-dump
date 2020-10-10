@@ -1,9 +1,30 @@
 #!/bin/sh
 
-if test $# -ne 0
-then
-	echo >&2 "Usage: $0"
+usage(){
+	echo >&2 "Usage: $0 [-p]"
+	echo >&2 " -p: dump processes too"
 	exit 2
+}
+
+proc=0
+while test $# -ne 0
+do
+	if test "$1" = -p
+	then proc=1
+	else usage
+	fi
+	shift
+done
+
+fmt_pre='#{session_name}:#{window_index}.#{pane_index} #{window_name}'
+fmt_post=' cmd=#{pane_current_command} path=#{pane_current_path}'
+fmt_mid=
+if test $proc -ne 0
+then fmt_mid=' pid=#{pane_pid}'
 fi
 
-tmux lsp -aF '#{session_name}:#{window_index}.#{pane_index} #{window_name} cmd=#{pane_current_command} path=#{pane_current_path}'
+tmux lsp -aF "$fmt_pre$fmt_mid$fmt_post"
+
+if test $proc -ne 0
+then ps -e -o pid,ppid,uid,gid,state,nice,tty,command
+fi
