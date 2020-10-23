@@ -1,7 +1,5 @@
 #!/bin/sh
 
-set -e
-
 if test $# -ne 1
 then
 	echo "Usage: $0 name" >&2
@@ -27,7 +25,12 @@ trap "rm -f '$f'" EXIT
 pass git reset --quiet --hard HEAD^
 
 echo "generated, launching ed..."
-ed "$f"
+if ! ed "$f"
+then
+	q=$?
+	echo >&2 "ed aborted, cancelling pass-gen"
+	exit $q
+fi
 
 pass insert \
 	--multiline \
