@@ -338,10 +338,11 @@ init(){
 #dev_default=Master
 #devices='Headphone Front'
 
-if test "$VOL_PA" = 0 || !pactl info >/dev/null 2>&1
+if test "$VOL_PA" = 0 || ! pactl info >/dev/null 2>&1
 then pulse=0
 else pulse=1
 fi
+#pulse=0 # note: some things don't work when in non-pulse mode
 init
 
 if test -n "$VOL_DEBUG" && test "$VOL_DEBUG" != 0
