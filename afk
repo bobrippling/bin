@@ -1,0 +1,11 @@
+#!/bin/sh
+
+if test $# -ne 0
+then
+	echo >&2 "Usage: $0"
+	exit 2
+fi
+
+echo reloadagent | gpg-connect-agent
+ssh-add -D
+xset dpms force suspend
