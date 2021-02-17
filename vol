@@ -285,11 +285,18 @@ outputs_select(){
 
 	while :
 	do
+		# As well as moving the sink inputs over to this sink,
+		# ensure future inputs get assigned to it too.
+		# We do this before moving sink-inputs so nothing
+		# can fall through the gap.
+		pactl set-default-sink "$i"
+
 		pactl list \
 			| sed -n 's/^Sink Input #\(.*\)/\1/p' \
-			| while read input
+			| while read sink
 			do
-				pactl move-sink-input "$input" "$i"
+				pactl move-sink-input "$sink" "$i"
+				#pactl set-sink-input-volume "$sink" '100%'
 			done
 
 		if test $watch -eq 0
