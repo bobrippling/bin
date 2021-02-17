@@ -70,6 +70,7 @@ $devices
 list(){
 	if test $pulse -eq 1
 	then
+		# pactl list short sinks
 		pactl list sinks \
 			| sed -n '
 				: a;
