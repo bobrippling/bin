@@ -13,6 +13,7 @@ Commands:
 Pulse-Commands:
 	o[utputs]
 	s[elect-output] [--watch] {output}
+	next-output
 
 Environment:
 	VOL_PA=0: Force off pulseaudio
@@ -306,6 +307,17 @@ outputs_select(){
 	done
 }
 
+outputs_next(){
+	default=$(pacmd list-sinks | grep '^ *\*' | sed 's/.*: //')
+	n=$(pactl list short sinks | wc -l)
+
+	set +e
+	i=$(expr $(expr $default + 1) % $n)
+	set -e
+
+	outputs_select $i
+}
+
 for_devices(){
 	if test "$dev_on_all" = yes
 	then
@@ -372,6 +384,7 @@ then
 		-) vol_dec ;;
 		+) vol_inc ;;
 		o|ou|outs|outputs) outputs_show ;;
+		next-output) outputs_next ;;
 		*) usage ;;
 	esac
 else
