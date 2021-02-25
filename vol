@@ -2,6 +2,8 @@
 
 set -e
 
+sed_ignores='/hdmi/Id;'
+
 usage(){
 	cat >&2 <<!
 Usage: $0 [ + | - | volume-to-set | <command> ]
@@ -322,6 +324,7 @@ outputs_next(){
 
 	next=$(
 		pactl list short sinks \
+			| sed "$sed_ignores" \
 			| grep -A1 "^$active\\s" \
 			| tail -1 \
 			| awk '{print $1}'
@@ -358,7 +361,7 @@ init_pulse(){
 	# $devices may contain spaces - must read via `echo | while read`
 	devices=$(pactl list sinks | sed -n '
 		# filters
-		/hdmi/Id;
+		'"$sed_ignores"'
 
 		s/.*Name: \(.*\)/\1/p;
 	')
