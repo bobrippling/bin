@@ -308,14 +308,32 @@ outputs_select(){
 }
 
 outputs_next(){
-	default=$(pacmd list-sinks | grep '^ *\*' | sed 's/.*: //')
-	n=$(pactl list short sinks | wc -l)
+	# sinks aren't sequential, so we find the active, then goto next
 
-	set +e
-	i=$(expr $(expr $default + 1) % $n)
-	set -e
+	active=$(
+		pacmd list-sinks \
+			| awk '
+					/^ *\* *index:/ {
+						print $3;
+						exit;
+					}
+			'
+	)
 
-	outputs_select $i
+	next=$(
+		pactl list short sinks \
+			| grep -A1 "^$active\\s" \
+			| tail -1 \
+			| awk '{print $1}'
+	)
+
+	if test "$next" = "$active"
+	then
+		# wrap aroudn
+		next=0
+	fi
+
+	outputs_select "$next"
 }
 
 for_devices(){
