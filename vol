@@ -376,6 +376,11 @@ init(){
 	fi
 }
 
+debug(){
+	test -n "$VOL_DEBUG" && test "$VOL_DEBUG" != 0
+	return $?
+}
+
 #dev_default=Master
 #devices='Headphone Front'
 
@@ -386,7 +391,7 @@ fi
 #pulse=0 # note: some things don't work when in non-pulse mode
 init
 
-if test -n "$VOL_DEBUG" && test "$VOL_DEBUG" != 0
+if debug
 then
 	echo "devices (default '$dev_default'):"
 	echo "$devices" | sed 's/^/  /'
