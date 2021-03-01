@@ -332,8 +332,16 @@ outputs_next(){
 
 	if test "$next" = "$active"
 	then
-		# wrap aroudn
-		next=0
+		# wrap around
+		next=$(
+			pactl list short sinks \
+				| head -1 \
+				| awk '{print $1}'
+		)
+	fi
+
+	if debug
+	then echo >&2 "outputs_next: active=$active next=$next"
 	fi
 
 	outputs_select "$next"
