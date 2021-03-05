@@ -74,6 +74,7 @@ list(){
 	if test $pulse -eq 1
 	then
 		# pactl list short sinks
+		sink_default=$(outputs_get_default)
 		pactl list sinks \
 			| sed -n '
 				: a;
@@ -111,9 +112,14 @@ list(){
 					fi
 
 					if test "$mute" = no
-					then echo "* $desc"
-					else echo "- $desc"
+					then pre="*"
+					else pre="-"
 					fi
+					if test "$index" = "$sink_default"
+					then pre="$pre D"
+					else pre="$pre -"
+					fi
+					echo "$pre $desc"
 				done
 		return
 	fi
