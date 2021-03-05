@@ -309,18 +309,20 @@ outputs_select(){
 	done
 }
 
+outputs_get_default(){
+	pacmd list-sinks \
+		| awk '
+			/^ *\* *index:/ {
+				print $3;
+				exit;
+			}
+		'
+}
+
 outputs_next(){
 	# sinks aren't sequential, so we find the active, then goto next
 
-	active=$(
-		pacmd list-sinks \
-			| awk '
-					/^ *\* *index:/ {
-						print $3;
-						exit;
-					}
-			'
-	)
+	active=$(outputs_get_default)
 
 	next=$(
 		pactl list short sinks \
