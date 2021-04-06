@@ -1,0 +1,37 @@
+#!/bin/sh
+
+# e.g. --geometry 1920x1080+1920+0
+
+usage(){
+	echo >&2 "Usage: $0 [--geometry WxH+X+Y] output"
+	exit 2
+}
+
+size=1920x1080
+geom=
+
+case $# in
+	3)
+		if ! test "$1" = --geometry
+		then usage
+		fi
+
+		read size geom <<-!
+		`echo $2 | sed 's/+/ &/'`
+		!
+		shift 2
+		;;
+	1)
+		;;
+	*)
+		usage
+		;;
+esac
+
+fname="$1"
+shift
+
+ffmpeg \
+	-f x11grab -s $size -r 20 -i :0.0$geom \
+	-f alsa -i pulse \
+	"$fname"
