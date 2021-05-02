@@ -1,10 +1,12 @@
 #!/bin/sh
 
 hash=sha256
+hashgiven=0
 
 if test $# -eq 3 && test "$1" = -E
 then
 	hash="$2"
+	hashgiven=1
 	shift 2
 fi
 
@@ -12,6 +14,12 @@ if test $# -ne 1
 then
 	echo >&2 "Usage: $0 [-E md5|sha256] fingerprint"
 	exit 2
+fi
+
+if test "$hashgiven" = 0 && echo "$1" | grep '[0-9a-f]\{2\}:[0-9a-f]\{2\}:[0-9a-f]\{2\}' >/dev/null
+then
+	echo >&2 "$0: detected md5 fingerprint, using -E md5"
+	hash=md5
 fi
 
 keys(){
