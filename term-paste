@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if test $# -ne 0
+then echo >&2 "$0: warning: ignoring args"
+fi
+
+urxvt -geometry 200x50 -e nvim '+pu* | $d | se bt=nofile | nnoremap <C-Z> :<C-U>echoerr "Suspend disabled"<CR>'
