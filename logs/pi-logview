@@ -178,6 +178,7 @@ filter_http(){
 			{
 				if ($3 == "-") {
 					unauth[$1]++
+					useragent_part[$1] = $14
 				} else {
 					auth[$1]++
 				}
@@ -187,7 +188,7 @@ filter_http(){
 					if (auth[u]) {
 						#print "auth'\''d: " u
 					} else {
-						print "never auth'\''d! " u
+						print "never auth'\''d! " u " (" useragent_part[u] ")"
 					}
 				}
 			}
