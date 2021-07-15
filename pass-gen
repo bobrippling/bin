@@ -12,6 +12,12 @@ then
 	exit 1
 fi
 
+cancel(){
+	# cancel exit-code desc
+	echo >&2 "$2, cancelling pass-gen"
+	exit $1
+}
+
 name="$1"
 f=/dev/shm/pass-gen.$$.txt
 
@@ -19,19 +25,21 @@ trap "rm -f '$f'" EXIT
 
 (
 	pass generate "$name" 20 | tail -1 | sed 's/\x1b\[[^m]*m//g'
+	#    ^~~~~~~~ this may fail, but leave pass with the commit in case
 	echo
 ) >"$f"
-
-pass git reset --quiet --hard HEAD^
 
 echo "generated, launching ed..."
 if ! ed "$f"
 then
 	q=$?
-	echo >&2 "ed aborted, cancelling pass-gen"
-	exit $q
+	cancel $q "ed aborted"
+fi
+if test $(wc -c "$f" | cut -d' ' -f1) -eq 0
+then cancel 1 "empty password file"
 fi
 
+pass git reset --quiet --hard HEAD^
 pass insert \
 	--multiline \
 	"$name" \
