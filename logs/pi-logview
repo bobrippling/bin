@@ -1,0 +1,199 @@
+#!/bin/sh
+
+#(cat /var/log/auth.log.1; tac /var/log/auth.log) | while read day date time host process rest
+#do
+#	if echo "$process" | grep '^sshd\[' >/dev/null
+#	then
+#		echo "$day $date $time $host $process $rest"
+#	fi
+#done
+
+usage(){
+	echo >&2 "Usage: $0 [--[no-]color] [--danger-only]"
+	exit 1
+}
+
+black=30
+blue=34
+red=31
+yellow=33
+magenta=35
+
+danger_level_to_colour(){
+	# 0: ok, 1: warning, 2: alert
+	case $1 in
+		0) printf '[0;'$black'm' ;;
+		1) printf '[0;'$yellow'm' ;;
+		2) printf '[0;'$red'm' ;;
+		*) printf '[0;'$red'm' ;;
+	esac
+}
+
+verbose=0
+danger_only=0
+col=0
+if ! test -t 1
+then col=1
+fi
+
+for arg
+do
+	case "$arg" in
+		--no-color)
+			col=1
+			;;
+		--color)
+			col=0
+			;;
+		--danger-only)
+			danger_only=1
+			;;
+		-v)
+			verbose=1
+			;;
+		*)
+			usage
+			;;
+	esac
+done
+
+have_col(){
+	return $col
+}
+
+col_off(){
+	have_col && printf '[m'
+}
+
+if have_col && test $verbose -ne 0
+then
+	seq 0 3 | while read x
+	do
+		danger_level_to_colour $x
+		printf '%s ' $x
+	done
+	col_off
+	echo
+fi
+
+file_contents(){
+	for f
+	do
+		case "$f" in
+			*.gz) zcat "$f" ;;
+			*) cat "$f"
+		esac
+	done
+}
+
+filter_auth(){
+	file_contents \
+		/var/log/auth.log \
+		/var/log/auth.log.1 \
+		/var/log/auth.log.[23].gz \
+		| grep ' rip sshd\[[0-9]*\]: \(Accepted\|Failed\)' \
+		| while read day date time host process \
+		accept_or_fail login_type kw_for login_user \
+		kw_from login_ip kw_port login_port login_proto
+	do
+		extra=
+
+		if test "$accept_or_fail" != Accepted \
+			&& test "$login_user" = invalid
+		then
+			# "Failed password    for    invalid     user     pi     from   90.155.102.125 port        59343 ssh2"
+			#  a_or_f login_type kw_for login_user kw_from login_ip kw_port login_port     login_proto  n/a   n/a
+			if have_col
+			then printf '[0;'$red'm'
+			fi
+
+			printf "[failure] %s\t%s\t%s\t%s\t%s\t(%s)\n" \
+				"$login_ip" \
+				"$login_port"   \
+				"$day" "$date" "$time" \
+				"$login_type"
+
+			if have_col
+			then printf '[0m'
+			fi
+
+			continue
+		fi
+
+		if have_col
+		then
+			danger_level=1
+
+			case "$login_user" in
+				pi)
+					if test $login_type = publickey
+					then danger_level=2
+					else danger_level=3
+					fi
+					;;
+				sandy)
+					if test $login_type = publickey
+					then danger_level=0
+					else danger_level=1
+					fi
+					;;
+				*)
+					danger_level=3
+					;;
+			esac
+
+			if echo $login_ip | grep -E '^(192\.168\.|127\.0\.0\.1$|::1)' >/dev/null
+			then danger_level=0
+			fi
+
+			if test "$accept_or_fail" != Accepted
+			then
+				danger_level=3
+				extra=" $extra$accept_or_fail"
+			fi
+
+			if test $danger_only -ne 0 && test $danger_level -eq 0
+			then continue
+			fi
+
+			danger_level_to_colour $danger_level
+		fi
+
+		printf '[success] %s\t%s\t%s\t%s\t%s\t(%s)%s\n' \
+			"$login_user" \
+			"$login_ip"   \
+			"$day" "$date" "$time" \
+			"$login_type" "$extra"
+	done | tac
+
+	col_off
+}
+
+filter_http(){
+	file_contents \
+		/var/log/lighttpd/access.log \
+		/var/log/lighttpd/access.log.1 \
+		/var/log/lighttpd/access.log.2.gz \
+		| awk '
+			{
+				if ($3 == "-") {
+					unauth[$1]++
+				} else {
+					auth[$1]++
+				}
+			}
+			END {
+				for (u in unauth) {
+					if (auth[u]) {
+						#print "auth'\''d: " u
+					} else {
+						print "never auth'\''d! " u
+					}
+				}
+			}
+		' \
+		| sort
+}
+
+filter_auth
+filter_http
