@@ -98,19 +98,29 @@ filter_ssh(){
 				# 1   2  3        4      5          6        7         8   9      10   11   12   13     14       15         16
 				# Sep 11 10:10:10 <host> sshd[pid]: Failed password for <user> from <ip> port <port> <proto>
 				# 1   2  3        4      5          6      7        8   9      10   11   12   13     14
+				# Dec 13 08:05:46 <host> sshd[pid]: Failed password for invalid user <user> from <ip> port <port> <proto>
+				# 1   2  3        4      5          6      7        8   9       10   11     12   13   14   15     16
 
 				if($6 == "Accepted"){
 					auth[$11] = 1;
 				} else if($6 == "Failed"){
-					failed[$11] = 1;
-					failed_dates[$11] = $1 " " $2 " " $3
-					failed_users[$11] = $4
+
+					if($9 == "invalid" && $10 == "user") {
+						ip = $13
+						failed_users[ip] = $4 " (" $11 ")"
+					} else {
+						ip = $11
+						failed_users[ip] = $4 " (" $9 ")"
+					}
+
+					failed[ip] = 1;
+					failed_dates[ip] = $1 " " $2 " " $3
 				}
 		}
 		END {
 			for (ip in failed) {
 				if (auth[ip]) {
-					print "ssh, auth'\''d: " ip
+					print "ssh, failed but auth'\''d: " ip
 				} else {
 					print "ssh, failed and never auth'\''d! " ip " (" failed_dates[ip] " as " failed_users[ip] ")"
 				}
