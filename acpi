@@ -1,0 +1,30 @@
+#!/bin/sh
+
+usage(){
+	echo >&2 "Usage: $0 [--percent]"
+	exit 2
+}
+
+os=$(uname -s)
+case "$os" in
+	Darwin)
+		case $# in
+			0)
+				pmset -g batt
+				;;
+			1)
+				if test "$1" = --percent
+				then pmset -g batt | sed -n '2s/.*	\([0-9]*%\).*/\1/p'
+				else usage
+				fi
+				;;
+			*)
+				usage
+				;;
+		esac
+		;;
+	*)
+		echo >&2 "$0: unknown OS \"$os\""
+		exit 1
+		;;
+esac
