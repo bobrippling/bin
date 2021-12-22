@@ -1,0 +1,20 @@
+#!/bin/sh
+
+usage(){
+	echo >&2 "Usage: $0"
+}
+
+if test $# -ne 0
+then usage
+fi
+
+# if we fail to fork (or any other error),
+# return true so we can wait until next time
+#
+# this way, we won't spuriously fail for non-X errors,
+# keeping loops going
+
+if xset q 2>&1 >/dev/null | grep 'open display' >/dev/null
+then return 1
+else return 0
+fi
