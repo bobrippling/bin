@@ -1,11 +1,38 @@
 #!/bin/sh
 
-if test $# -ne 0
-then
-	echo >&2 "Usage: $0"
+usage(){
+	echo >&2 "Usage: $0 [--agents-only]"
 	exit 2
-fi
+}
 
-echo reloadagent | gpg-connect-agent
-ssh-add -D
-xset dpms force suspend
+clear_agents(){
+	echo "$0: clearing gpg-agent" >&2
+	#echo "reloadagent" | gpg-connect-agent --no-autostart >/dev/null
+	pkill -HUP gpg-agent
+
+	echo "$0: clearing ssh-agent" >&2
+	ssh-add -Dq
+}
+
+case $# in
+	0)
+		clear_agents
+		sync
+		if test -n "$DISPLAY"
+		then xset dpms force suspend
+		fi
+		;;
+	1)
+		case "$1" in
+			--agents-only)
+				clear_agents
+				;;
+			*)
+				usage
+				;;
+		esac
+		;;
+	*)
+		usage
+		;;
+esac
