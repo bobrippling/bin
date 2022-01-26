@@ -138,7 +138,7 @@ filter_ssh(){
 				if (auth[ip]) {
 					print "ssh, failed but auth'\''d: " ip
 				} else {
-					print "ssh, failed and never auth'\''d! " ip " (" failed_dates[ip] " as " failed_users[ip] ")"
+					print "ssh, failed and never auth'\''d! " ip " (on " failed_dates[ip] ", as " failed_users[ip] ")"
 				}
 			}
 		}
