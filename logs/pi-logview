@@ -154,7 +154,23 @@ filter_http(){
 			{
 				if ($3 == "-") {
 					unauth[$1]++
-					useragent_part[$1] = $14
+
+					ua = ""
+					for(i = NF; i > 0; i -= 1) {
+						ua = $i " " ua
+
+						if(substr($i, 1, 1) == "\"")
+							break
+					}
+
+					sub(" *$", "", ua)
+					useragent_part[$1] = ua
+
+					when = $4 " " $5
+					sub(":", " ", when)
+					gsub("[][]", "", when)
+					date_part[$1] = when
+
 				} else {
 					auth[$1]++
 				}
@@ -164,12 +180,14 @@ filter_http(){
 					if (auth[u]) {
 						#print "http, auth'\''d: " u
 					} else {
-						print "http, never auth'\''d! " u " (" useragent_part[u] ")"
+						print "http, never auth'\''d! " u " (on " date_part[u] " from " useragent_part[u] ")"
 					}
 				}
 			}
 		' \
-		| sort
+			| sed 's%\([0-9]*\)/\([A-Z][a-z]*\)/\([0-9]*\)%\3/\2/\1%;
+					s/Jan/01/; s/Feb/02/; s/Mar/03/; s/Apr/04/; s/May/05/; s/Jun/06/; s/Jul/07/; s/Aug/08/; s/Sep/09/; s/Oct/10/; s/Nov/11/; s/Dec/12/;' \
+			| sort -k 6
 }
 
 filter_ssh
