@@ -1,0 +1,12 @@
+#!/bin/sh
+
+usage(){
+	echo >&2 "Usage: $0 files..."
+	exit 2
+}
+
+if test $# -eq 0
+then usage
+fi
+
+qlmanage -p "$@" >/dev/null 2>&1
