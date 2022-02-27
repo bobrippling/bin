@@ -9,7 +9,8 @@ fi
 store=~/.dmesg-errors
 
 last="$(cat "$store" 2>/dev/null)"
-current="$(dmesg -T | grep -E '\b(fatal|error|errors|failed|failure)\b')"
+#current="$(dmesg -T | grep -E '\b(fatal|error|errors|failed|failure)\b')"
+current="$(dmesg -T --level err)"
 
 if test "$last" != "$current"
 then
