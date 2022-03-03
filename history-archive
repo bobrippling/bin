@@ -1,0 +1,40 @@
+#!/bin/sh
+
+set -e
+
+if test $# -eq 1
+then
+	h="$1"
+	if ! test -e "$h"
+	then
+		echo >&2 "Usage: $0 [history-file]"
+		exit 2
+	fi
+else
+	if test -n "$BASH"
+	then h=~/.bash_history
+	elif test -n "$ZSH_VERSION"
+	then h=~/.zsh_history
+	else
+		echo >&2 "$0: unknown shell"
+		exit 1
+	fi
+fi
+
+bname="$(basename "$0")"
+
+# once it gets to 7k, drop to 5k
+
+n=$(wc -l "$h" | cut -d' ' -f1)
+if test $n -le 7000
+then exit 0
+fi
+
+echo >&2 "$bname: $n lines in $h, archiving..."
+archive_count=$(($n - 5000))
+
+#echo "archiving the first $archive_count lines from $h"
+#echo "trimming $h to the last 5000 lines"
+
+head -"$archive_count" "$h" >> "$h.archive"
+tail -5000 "$h" | sponge "$h"
