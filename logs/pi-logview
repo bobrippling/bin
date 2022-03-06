@@ -138,7 +138,7 @@ filter_ssh(){
 				if (auth[ip]) {
 					print "ssh, failed but auth'\''d: " ip
 				} else {
-					print "ssh, failed and never auth'\''d! " ip " (on \x1b[31m" failed_dates[ip] "\x1b[0m, as " failed_users[ip] ")"
+					print "ssh, failed and never auth'\''d! " ip " (on \x1b[32m" failed_dates[ip] "\x1b[0m, as " failed_users[ip] ")"
 				}
 			}
 		}
@@ -180,7 +180,7 @@ filter_http(){
 					if (auth[u]) {
 						#print "http, auth'\''d: " u
 					} else {
-						print "http, never auth'\''d! " u " (on \x1b[31m" date_part[u] "\x1b[0m from " useragent_part[u] ")"
+						print "http, never auth'\''d! " u " (on \x1b[32m" date_part[u] "\x1b[0m from " useragent_part[u] ")"
 					}
 				}
 			}
