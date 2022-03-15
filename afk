@@ -17,9 +17,14 @@ clear_agents(){
 case $# in
 	0)
 		clear_agents
+
+		echo "$0: sync" >&2
 		sync
+
 		if test -n "$DISPLAY"
-		then xset dpms force suspend
+		then
+			echo "$0: X11 display off" >&2
+			xset dpms force suspend
 		fi
 		;;
 	1)
