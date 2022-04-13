@@ -1,0 +1,39 @@
+#!/bin/sh
+
+# -d: display
+# -i: idle sleep
+# -m: disk sleep
+# -s: system sleep (only works on ac power)
+# -u: user active (defaults to 5 sec timeout)
+# -t timeout: (ignored when cmd given)
+# -w pid: wait for pid (ignored when cmd given)
+
+# see also:
+# pmset displaysleep <n>
+# pmset disksplaysleep <n>
+
+usage(){
+	echo >&2 "Usage: $0 [--screen] [cmd [args...]]"
+	echo >&2 "  --screen: keep screen on"
+	exit 2
+}
+
+mode=-i
+if test $# -eq 0
+then
+	:
+else
+	case "$1" in
+		--screen)
+			shift
+			mode=-id
+			;;
+		-*)
+			usage
+			;;
+		*)
+			;;
+	esac
+fi
+
+exec caffeinate "$mode" "$@"
