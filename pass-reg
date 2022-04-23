@@ -1,7 +1,6 @@
 #!/bin/sh
 
-if test $# -eq 0
-then
+usage(){
 	echo "Usage: $0 [-n] [-c] [-e] [grep args]" >&2
 	echo "       $0 -l" >&2
 	echo "-n: no-op" >&2
@@ -10,6 +9,10 @@ then
 	echo >&2
 	echo "-l: list directories" >&2
 	exit 2
+}
+
+if test $# -eq 0
+then usage
 fi
 
 if test "$1" = -l
@@ -46,6 +49,9 @@ do
 		-e)
 			subcmd=edit
 			shift
+			;;
+		--help)
+			usage
 			;;
 		*)
 			break

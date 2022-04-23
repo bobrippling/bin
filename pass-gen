@@ -54,6 +54,9 @@ oneshot(){
 
 case $# in
 	1)
+		if echo "$1" | grep '^-' >/dev/null
+		then usage
+		fi
 		generate "$1"
 		;;
 	2)
