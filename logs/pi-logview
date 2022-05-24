@@ -16,6 +16,8 @@ case "$PAM_TYPE" in
 		;;
 esac
 
+sed_month_to_num="s/Jan/01/; s/Feb/02/; s/Mar/03/; s/Apr/04/; s/May/05/; s/Jun/06/; s/Jul/07/; s/Aug/08/; s/Sep/09/; s/Oct/10/; s/Nov/11/; s/Dec/12/;"
+
 #(cat /var/log/auth.log.1; tac /var/log/auth.log) | while read day date time host process rest
 #do
 #	if echo "$process" | grep '^sshd\[' >/dev/null
@@ -151,7 +153,10 @@ filter_ssh(){
 				}
 			}
 		}
-		'
+		' \
+			| sed 's%on \([A-Za-z]*\) \([0-9]*\) %on yyyy/\1/\2 %; s%/\([0-9]\) %/0\1 %; '"$sed_month_to_num" \
+			| sort -k 7
+		# 06/Month/2022 --> 2022/Month/06
 }
 
 filter_http(){
@@ -194,9 +199,9 @@ filter_http(){
 				}
 			}
 		' \
-			| sed 's%\([0-9]*\)/\([A-Z][a-z]*\)/\([0-9]*\)%\3/\2/\1%;
-					s/Jan/01/; s/Feb/02/; s/Mar/03/; s/Apr/04/; s/May/05/; s/Jun/06/; s/Jul/07/; s/Aug/08/; s/Sep/09/; s/Oct/10/; s/Nov/11/; s/Dec/12/;' \
+			| sed 's%\([0-9]*\)/\([A-Z][a-z]*\)/\([0-9]*\)%\3/\2/\1%;'"$sed_month_to_num" \
 			| sort -k 6
+		# 06/Month/2022 --> 2022/Month/06
 }
 
 filter_ssh
