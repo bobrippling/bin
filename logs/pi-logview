@@ -119,6 +119,8 @@ filter_ssh(){
 				# 1   2  3        4      5          6      7        8   9       10   11     12   13   14   15     16
 				# Dec 13 08:05:46 <host> sshd[pid]: (Bad|Did not|Invalid|Protocol|Unable)
 				# 1   2  3        4      5          6
+				# May 24 02:01:52 <host> sshd[pid]: Bad protocol version identification '\003' from 141.98.9.13 port 64384
+				# 1   2  3        4      5          6
 
 				if($6 == "Accepted"){
 					auth[$11] = 1;
@@ -133,6 +135,7 @@ filter_ssh(){
 
 					failed[ip] = 1;
 					failed_dates[ip] = $1 " " $2 " " $3
+					failed_desc[ip] = "invalid user/pw"
 				} else {
 					i = match($0, "[0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*")
 					if (i > 0) {
@@ -140,6 +143,7 @@ filter_ssh(){
 						failed[ip] = 1;
 						failed_users[ip] = "?"
 						failed_dates[ip] = $1 " " $2 " " $3
+						failed_desc[ip] = $6 " " $7
 					}
 				}
 		}
@@ -148,7 +152,7 @@ filter_ssh(){
 				if (auth[ip]) {
 					print "ssh, failed but auth'\''d: " ip
 				} else {
-					print "ssh, failed and never auth'\''d! " ip " (on \x1b[32m" failed_dates[ip] "\x1b[0m, as " failed_users[ip] ")"
+					print "ssh, failed and never auth'\''d! " ip " (\x1b[32mon " failed_dates[ip] "\x1b[0m, as " failed_users[ip] ", desc: " failed_desc[ip] ")"
 				}
 			}
 		}
