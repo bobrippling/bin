@@ -133,14 +133,15 @@ filter_ssh(){
 						failed_users[ip] = $4 " (" $9 ")"
 					}
 
-					failed[ip] = 1;
+					failed[ip]++;
 					failed_dates[ip] = $1 " " $2 " " $3
 					failed_desc[ip] = "invalid user/pw"
 				} else {
 					i = match($0, "[0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*")
+					#echo "match" i
 					if (i > 0) {
 						ip = substr($0, i, RLENGTH)
-						failed[ip] = 1;
+						failed[ip]++;
 						failed_users[ip] = "?"
 						failed_dates[ip] = $1 " " $2 " " $3
 						failed_desc[ip] = $6 " " $7
@@ -150,9 +151,9 @@ filter_ssh(){
 		END {
 			for (ip in failed) {
 				if (auth[ip]) {
-					print "ssh, failed but auth'\''d: " ip
+					print "ssh, failed (" failed[ip] " times) but auth'\''d: " ip
 				} else {
-					print "ssh, failed and never auth'\''d! " ip " (\x1b[32mon " failed_dates[ip] "\x1b[0m, as " failed_users[ip] ", desc: " failed_desc[ip] ")"
+					print "ssh, failed (" failed[ip] " times) and never auth'\''d! " ip " (\x1b[32mon " failed_dates[ip] "\x1b[0m, as " failed_users[ip] ", desc: " failed_desc[ip] ")"
 				}
 			}
 		}
@@ -197,7 +198,7 @@ filter_http(){
 					if (auth[u]) {
 						#print "http, auth'\''d: " u
 					} else {
-						print "http, never auth'\''d! " u " (on \x1b[32m" date_part[u] "\x1b[0m from " useragent_part[u] ")"
+						print "http, never auth'\''d! " u " (" unauth[u] " times, on \x1b[32m" date_part[u] "\x1b[0m from " useragent_part[u] ")"
 					}
 				}
 			}
