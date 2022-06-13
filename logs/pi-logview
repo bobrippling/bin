@@ -182,7 +182,12 @@ filter_http(){
 					}
 
 					sub(" *$", "", ua)
+					sub("[^(]*\(", "", ua)
+					sub("\).*", "", ua)
 					useragent_part[$1] = ua
+
+					if (index($7, "/sibble") != 1 && index($7, "/favicon") != 1)
+						private_access[$1] = 1
 
 					when = $4 " " $5
 					sub(":", " ", when)
@@ -198,7 +203,8 @@ filter_http(){
 					if (auth[u]) {
 						#print "http, auth'\''d: " u
 					} else {
-						print "http, never auth'\''d! " u " (" unauth[u] " times, on \x1b[32m" date_part[u] "\x1b[0m from " useragent_part[u] ")"
+						desc = private_access[u] ? "" : " (\x1b[32mpublic only\x1b[0m)"
+						print "http, never auth'\''d! " u " (" unauth[u] " times, on \x1b[34m" date_part[u] "\x1b[0m" desc " from " useragent_part[u] ")"
 					}
 				}
 			}
