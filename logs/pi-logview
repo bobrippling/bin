@@ -159,7 +159,7 @@ filter_ssh(){
 		}
 		' \
 			| sed 's%on \([A-Za-z]*\) \([0-9]*\) %on yyyy/\1/\2 %; s%/\([0-9]\) %/0\1 %; '"$sed_month_to_num" \
-			| sort -k 7
+			| sort -k 10
 		# 06/Month/2022 --> 2022/Month/06
 }
 
@@ -210,7 +210,7 @@ filter_http(){
 			}
 		' \
 			| sed 's%\([0-9]*\)/\([A-Z][a-z]*\)/\([0-9]*\)%\3/\2/\1%;'"$sed_month_to_num" \
-			| sort -k 6
+			| sort -k 8
 		# 06/Month/2022 --> 2022/Month/06
 }
 
