@@ -186,8 +186,12 @@ filter_http(){
 					sub("\).*", "", ua)
 					useragent_part[$1] = ua
 
-					if (index($7, "/sibble") != 1 && index($7, "/favicon") != 1)
+					if (index($7, "/sibble") != 1 \
+					&& index($7, "/favicon") != 1 \
+					&& match($7, "/apple-touch-icon.*\\.png$") != 1)
+					{
 						private_access[$1] = 1
+					}
 
 					when = $4 " " $5
 					sub(":", " ", when)
