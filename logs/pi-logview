@@ -134,7 +134,8 @@ filter_ssh(){
 					}
 
 					failed[ip]++;
-					failed_dates[ip] = $1 " " $2 " " $3
+					failed_dates[ip] = $1 " " $2
+					failed_times[ip] = $3
 					failed_desc[ip] = "invalid user/pw"
 				} else {
 					i = match($0, "[0-9]*\\.[0-9]*\\.[0-9]*\\.[0-9]*")
@@ -143,7 +144,8 @@ filter_ssh(){
 						ip = substr($0, i, RLENGTH)
 						failed[ip]++;
 						failed_users[ip] = "?"
-						failed_dates[ip] = $1 " " $2 " " $3
+						failed_dates[ip] = $1 " " $2
+						failed_times[ip] = $3
 						failed_desc[ip] = $6 " " $7
 					}
 				}
@@ -153,7 +155,8 @@ filter_ssh(){
 				if (auth[ip]) {
 					print "ssh, failed (" failed[ip] " times) but auth'\''d: " ip
 				} else {
-					print "ssh, failed (" failed[ip] " times) and never auth'\''d! " ip " (\x1b[32mon " failed_dates[ip] "\x1b[0m, as " failed_users[ip] ", desc: " failed_desc[ip] ")"
+					print "ssh, failed (" failed[ip] " times) and never auth'\''d! " ip \
+						" (\x1b[34mon " failed_dates[ip] " \x1b[32m" failed_times[ip] "\x1b[0m, as " failed_users[ip] ", desc: " failed_desc[ip] ")"
 				}
 			}
 		}
