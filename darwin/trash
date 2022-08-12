@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+
+# derived from https://www.anthonysmith.me.uk/2008/01/08/moving-files-to-trash-from-the-mac-command-line/
+
+import os
+import sys
+import subprocess
+
+if len(sys.argv) <= 1 or sys.argv[1] == "--version":
+    sys.stderr.write('usage: %s file...\n' % os.path.basename(sys.argv[0]))
+    sys.exit(64)
+
+files = []
+for arg in sys.argv[1:]:
+    p = os.path.abspath(arg).replace('\\', '\\\\').replace('"', '\\"')
+    files.append('the POSIX file "' + p + '"')
+
+cmd = [
+    'osascript',
+    '-e',
+    'tell app "Finder" to move {' + ', '.join(files) + '} to trash',
+]
+
+p = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True)
+
+sys.stderr.write(p.stderr)
+
+sys.exit(1 if 'error' in p.stderr else 0)
