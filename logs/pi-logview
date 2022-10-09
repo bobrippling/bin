@@ -49,19 +49,19 @@ danger_level_to_colour(){
 
 verbose=0
 danger_only=0
-col=0
+col_ret=0
 if ! test -t 1
-then col=1
+then col_ret=1
 fi
 
 for arg
 do
 	case "$arg" in
 		--no-colour)
-			col=1
+			col_ret=1
 			;;
 		--colour)
-			col=0
+			col_ret=0
 			;;
 		--danger-only)
 			danger_only=1
@@ -76,7 +76,7 @@ do
 done
 
 have_col(){
-	return $col
+	return $col_ret
 }
 
 col_off(){
