@@ -83,6 +83,17 @@ col_off(){
 	have_col && printf '[m'
 }
 
+if have_col
+then
+	awk_colours='
+		-v colour_off=\x1b[0m
+		-v colour_green=\x1b[32m
+		-v colour_blue=\x1b[34m
+	'
+else
+	awk_colours=
+fi
+
 if have_col && test $verbose -ne 0
 then
 	seq 0 3 | while read x
@@ -109,7 +120,7 @@ filter_ssh(){
 		/var/log/auth.log \
 		/var/log/auth.log.1 \
 		/var/log/auth.log.[2345].gz \
-		| awk '
+		| awk $awk_colours '
 		$5 ~ "sshd" {
 				# Oct 20 10:10:10 <host> sshd[pid]: Accepted publickey for <user> from <ip> port <port> <proto>: <key-type> SHA256:<key>
 				# 1   2  3        4      5          6        7         8   9      10   11   12   13     14       15         16
@@ -156,7 +167,7 @@ filter_ssh(){
 					print "ssh, failed (" failed[ip] " times) but auth'\''d: " ip
 				} else {
 					print "ssh, failed (" failed[ip] " times) and never auth'\''d! " ip \
-						" (\x1b[34mon " failed_dates[ip] " \x1b[32m" failed_times[ip] "\x1b[0m, as " failed_users[ip] ", desc: " failed_desc[ip] ")"
+						" (" colour_blue "on " failed_dates[ip] " " colour_green "" failed_times[ip] "" colour_off ", as " failed_users[ip] ", desc: " failed_desc[ip] ")"
 				}
 			}
 		}
@@ -171,7 +182,7 @@ filter_http(){
 		/var/log/lighttpd/access.log \
 		/var/log/lighttpd/access.log.1 \
 		/var/log/lighttpd/access.log.2.gz \
-		| awk '
+		| awk $awk_colours '
 			{
 				if ($3 == "-") {
 					unauth[$1]++
@@ -210,8 +221,8 @@ filter_http(){
 					if (auth[u]) {
 						#print "http, auth'\''d: " u
 					} else {
-						desc = private_access[u] ? "" : " (\x1b[32mpublic only\x1b[0m)"
-						print "http, never auth'\''d! " u " (" unauth[u] " times, on \x1b[34m" date_part[u] "\x1b[0m" desc " from " useragent_part[u] ")"
+						desc = private_access[u] ? "" : " (" colour_green "public only" colour_off ")"
+						print "http, never auth'\''d! " u " (" unauth[u] " times, on " colour_blue "" date_part[u] "" colour_off "" desc " from " useragent_part[u] ")"
 					}
 				}
 			}
