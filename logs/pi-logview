@@ -27,7 +27,7 @@ sed_month_to_num="s/Jan/01/; s/Feb/02/; s/Mar/03/; s/Apr/04/; s/May/05/; s/Jun/0
 #done
 
 usage(){
-	echo >&2 "Usage: $0 [--[no-]color] [--danger-only]"
+	echo >&2 "Usage: $0 [--[no-]colour] [--danger-only]"
 	exit 1
 }
 
@@ -57,10 +57,10 @@ fi
 for arg
 do
 	case "$arg" in
-		--no-color)
+		--no-colour)
 			col=1
 			;;
-		--color)
+		--colour)
 			col=0
 			;;
 		--danger-only)
