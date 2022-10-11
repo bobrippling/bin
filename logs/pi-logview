@@ -1,23 +1,5 @@
 #!/bin/sh
 
-# PAM_SERVICE=sshd
-# PAM_RHOST=127.0.0.1
-# PAM_USER=pi
-# PAM_TYPE=open_session
-# PAM_TTY=ssh|open_session|close_session
-case "$PAM_TYPE" in
-	open_session)
-		;;
-	close_session)
-		exit 0
-		;;
-	*)
-		# probably not run from pam
-		;;
-esac
-
-sed_month_to_num="s/Jan/01/; s/Feb/02/; s/Mar/03/; s/Apr/04/; s/May/05/; s/Jun/06/; s/Jul/07/; s/Aug/08/; s/Sep/09/; s/Oct/10/; s/Nov/11/; s/Dec/12/;"
-
 #(cat /var/log/auth.log.1; tac /var/log/auth.log) | while read day date time host process rest
 #do
 #	if echo "$process" | grep '^sshd\[' >/dev/null
@@ -36,16 +18,7 @@ blue=34
 red=31
 yellow=33
 magenta=35
-
-danger_level_to_colour(){
-	# 0: ok, 1: warning, 2: alert
-	case $1 in
-		0) printf '[0;'$black'm' ;;
-		1) printf '[0;'$yellow'm' ;;
-		2) printf '[0;'$red'm' ;;
-		*) printf '[0;'$red'm' ;;
-	esac
-}
+sed_month_to_num="s/Jan/01/; s/Feb/02/; s/Mar/03/; s/Apr/04/; s/May/05/; s/Jun/06/; s/Jul/07/; s/Aug/08/; s/Sep/09/; s/Oct/10/; s/Nov/11/; s/Dec/12/;"
 
 verbose=0
 danger_only=0
@@ -53,6 +26,22 @@ col_ret=0
 if ! test -t 1
 then col_ret=1
 fi
+
+# PAM_SERVICE=sshd
+# PAM_RHOST=127.0.0.1
+# PAM_USER=pi
+# PAM_TYPE=open_session
+# PAM_TTY=ssh|open_session|close_session
+case "$PAM_TYPE" in
+	open_session)
+		;;
+	close_session)
+		exit 0
+		;;
+	*)
+		# probably not run from pam
+		;;
+esac
 
 for arg
 do
@@ -93,6 +82,16 @@ then
 else
 	awk_colours=
 fi
+
+danger_level_to_colour(){
+	# 0: ok, 1: warning, 2: alert
+	case $1 in
+		0) printf '[0;'$black'm' ;;
+		1) printf '[0;'$yellow'm' ;;
+		2) printf '[0;'$red'm' ;;
+		*) printf '[0;'$red'm' ;;
+	esac
+}
 
 if have_col && test $verbose -ne 0
 then
