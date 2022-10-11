@@ -34,6 +34,8 @@ fi
 # PAM_TTY=ssh|open_session|close_session
 case "$PAM_TYPE" in
 	open_session)
+		# default to colour for PAM / logins
+		col_ret=0
 		;;
 	close_session)
 		exit 0
