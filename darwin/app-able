@@ -1,0 +1,47 @@
+#!/bin/sh
+
+usage(){
+	echo >&2 "Usage: $0 [--[in]active] [--kill] [-exec chmod -x {} '+' ...]"
+	exit 2
+}
+
+args=
+kill=0
+while test $# -gt 0
+do
+	case "$1" in
+		--help)
+			usage
+			;;
+		--active)
+			shift
+			args='-perm +a+x'
+			;;
+		--inactive)
+			shift
+			args=''
+			;;
+		--kill)
+			shift
+			kill=1
+			;;
+		*)
+			break
+			;;
+	esac
+done
+
+list(){
+	find */ -path '*/MacOS/*' $args -type f -regex '.*/MacOS/[^/]*$' "$@"
+}
+
+if test $kill -eq 1
+then
+	list | while read line; do
+		basename=$(echo "$line" | sed 's;.*/;;')
+		echo "--- $basename"
+		pkill -9 "$basename" 2>&1 | sed 's/^/  /'
+	done
+else
+	list
+fi
