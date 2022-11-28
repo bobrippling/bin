@@ -1,7 +1,7 @@
 #!/bin/sh
 
 usage(){
-	echo >&2 "Usage: $0 [--agents-only]"
+	echo >&2 "Usage: $0 [--[no-]sync] [--agents-only]"
 	exit 2
 }
 
@@ -14,23 +14,29 @@ clear_agents(){
 	ssh-add -Dq
 }
 
+do_sync(){
+	echo "$0: sync" >&2
+	sync
+}
+
+do_x11(){
+	if test -n "$DISPLAY"
+	then
+		echo "$0: X11 display off" >&2
+		xset dpms force suspend
+	fi
+}
+
+sync=1
 case $# in
 	0)
-		clear_agents
-
-		echo "$0: sync" >&2
-		sync
-
-		if test -n "$DISPLAY"
-		then
-			echo "$0: X11 display off" >&2
-			xset dpms force suspend
-		fi
 		;;
 	1)
 		case "$1" in
-			--agents-only)
-				clear_agents
+			--sync)
+				;;
+			--no-sync|--agents-only)
+				sync=0
 				;;
 			*)
 				usage
@@ -41,3 +47,9 @@ case $# in
 		usage
 		;;
 esac
+
+clear_agents
+if test $sync -ne 0
+then do_sync
+fi
+do_x11
