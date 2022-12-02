@@ -1,9 +1,13 @@
 #!/bin/sh
 
 usage(){
-	echo >&2 "Usage: $0 [--[in]active] [--kill] [-exec chmod -x {} '+' ...]"
+	echo >&2 "Usage: $0 --only-active | --all | --kill"
 	exit 2
 }
+
+if test $# -eq 0
+then usage
+fi
 
 args=
 kill=0
@@ -13,11 +17,11 @@ do
 		--help)
 			usage
 			;;
-		--active)
+		--only-active)
 			shift
 			args='-perm +a+x'
 			;;
-		--inactive)
+		--all)
 			shift
 			args=''
 			;;
