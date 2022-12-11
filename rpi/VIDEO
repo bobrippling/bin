@@ -1,0 +1,26 @@
+#!/usr/bin/perl
+
+my $key_conf = "$ENV{HOME}/.config/omxplayer/keys";
+my @opts = (
+	# default font to one that exists - omxplayer's default doesn't for some reason
+	"--font",
+	"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+	"--italic-font",
+	"/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+);
+# --font-size size
+
+while($ARGV[0] =~ /^--/){ # --subtitles, --pos, etc
+	push @opts, shift;
+	push @opts, shift;
+}
+
+if(@ARGV == 0){
+	print STDERR "Usage: $0 [--subtitles <file>] [--pos <pos>] [...]\n";
+	exit 2;
+}
+
+for(@ARGV){
+	system("omxplayer", "--key-config", $key_conf, "-o", "hdmi", @opts, $_);
+	# TODO? grep for "Current Volume: -6.00dB" and adjust next one
+}

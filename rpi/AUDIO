@@ -1,0 +1,43 @@
+#!/bin/sh
+
+usage(){
+	echo >&2 "Usage: $0 [toggle]"
+	exit 2
+}
+
+index(){
+	amixer cget numid=3 | tail -c2
+}
+
+show(){
+	case $(index) in
+		0) echo both ;;
+		1) echo hdmi ;;
+		2) echo jack ;;
+	esac
+}
+
+toggle(){
+	i=$(index)
+	if test $i -eq 2
+	then i=0
+	else i=$(expr $i + 1)
+	fi
+	amixer cset numid=3 $i >/dev/null
+}
+
+case "$#" in
+	0)
+		show
+		;;
+	1)
+		case toggle in
+			"$1"*)
+				toggle
+				;;
+			*)
+				usage
+				;;
+		esac
+		;;
+esac
