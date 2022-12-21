@@ -1,7 +1,7 @@
 #!/bin/sh
 
 usage(){
-	echo >&2 "Usage: $0 --only-active | --all | --kill"
+	echo >&2 "Usage: $0 --show=active | --show=all | --kill | --chmod=..."
 	exit 2
 }
 
@@ -9,6 +9,7 @@ if test $# -eq 0
 then usage
 fi
 
+chmod=
 args=
 kill=0
 while test $# -gt 0
@@ -17,11 +18,11 @@ do
 		--help)
 			usage
 			;;
-		--only-active)
+		--show=active)
 			shift
 			args='-perm +a+x'
 			;;
-		--all)
+		--show=all)
 			shift
 			args=''
 			;;
@@ -29,8 +30,12 @@ do
 			shift
 			kill=1
 			;;
+		--chmod=*)
+			chmod=${1#--chmod=}
+			shift
+			;;
 		*)
-			break
+			usage
 			;;
 	esac
 done
@@ -39,12 +44,22 @@ list(){
 	find */ -path '*/MacOS/*' $args -type f -regex '.*/MacOS/[^/]*$' "$@"
 }
 
+indent(){
+	sed 's/^/  /'
+}
+
+if test -n "$chmod"
+then
+	echo "chmodding"
+	list | tr '\n' '\0' | xargs -0 sudo chmod "$chmod" 2>&1 | indent
+fi
+
 if test $kill -eq 1
 then
 	list | while read line; do
 		basename=$(echo "$line" | sed 's;.*/;;')
-		echo "--- $basename"
-		pkill -9 "$basename" 2>&1 | sed 's/^/  /'
+		echo "killing $basename"
+		pkill -9 "$basename" 2>&1 | indent
 	done
 else
 	list
