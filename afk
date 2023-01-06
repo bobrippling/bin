@@ -27,16 +27,16 @@ do_x11(){
 	fi
 }
 
-sync=1
+sync=0
 case $# in
 	0)
 		;;
 	1)
 		case "$1" in
 			--sync)
+				sync=1
 				;;
 			--no-sync|--agents-only)
-				sync=0
 				;;
 			*)
 				usage
