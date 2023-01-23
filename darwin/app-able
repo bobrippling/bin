@@ -12,6 +12,7 @@ fi
 chmod=
 args=
 kill=0
+show=0
 while test $# -gt 0
 do
 	case "$1" in
@@ -20,10 +21,12 @@ do
 			;;
 		--show=active)
 			shift
+			show=1
 			args='-perm +a+x'
 			;;
 		--show=all)
 			shift
+			show=1
 			args=''
 			;;
 		--kill)
@@ -61,6 +64,8 @@ then
 		echo "killing $basename"
 		pkill -9 "$basename" 2>&1 | indent
 	done
-else
-	list
+fi
+
+if test $show -eq 1
+then list
 fi
