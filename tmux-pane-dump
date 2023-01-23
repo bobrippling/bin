@@ -4,56 +4,74 @@ usage(){
 	echo >&2 "Usage: $0 [-p] [-u file]"
 	echo >&2 " -p: dump processes too"
 	echo >&2 " -u: show update compared to file"
+	echo >&2
+	echo >&2 "Usage: $0 restore <file>"
 	exit 2
 }
 
-proc=0
-update_file=
-while test $# -ne 0
-do
-	if test "$1" = -p
-	then proc=1
-	elif test "$1" = -u
-	then
-		shift
-		update_file="$1"
-		if test -z "$update_file"
-		then usage
-		fi
-	else usage
-	fi
-	shift
-done
-
-strip_proc(){
-	sed -n '/^ *PID/q; p'
-}
-
-fmt_pre='#{session_name}:#{window_index}.#{pane_index} #{window_name}'
-fmt_post=' cmd=#{pane_current_command} path=#{pane_current_path}'
-fmt_mid=
-if test $proc -ne 0
-then fmt_mid=' pid=#{pane_pid}'
-fi
-
-if test -n "$update_file"
+if test "$1" = restore
 then
-	t=/tmp/tmux-pane-cmp-$$
-	trap "rm -f '$t'" EXIT
-
-	strip_proc < "$update_file" > "$t"
-
-	arg=
-	if test $proc -ne 0
-	then arg=-p
+	if test $# -ne 2
+	then usage
 	fi
-	"$0" $arg | strip_proc | diff -u "$t" -
 
-	exit 0
-fi
+	while read id title cmd path
+	do
+		wd=${path%*=}
+		if echo "$title" | grep '^>' >/dev/null
+		then echo tmux new-window -c "$wd" -d
+		else echo tmux new-window -c "$wd" -d -n "$title"
+		fi
+	done <"$2"
+else
+	proc=0
+	update_file=
+	while test $# -ne 0
+	do
+		if test "$1" = -p
+		then proc=1
+		elif test "$1" = -u
+		then
+			shift
+			update_file="$1"
+			if test -z "$update_file"
+			then usage
+			fi
+		else usage
+		fi
+		shift
+	done
 
-tmux lsp -aF "$fmt_pre$fmt_mid$fmt_post"
+	strip_proc(){
+		sed -n '/^ *PID/q; p'
+	}
 
-if test $proc -ne 0
-then ps -e -o pid,ppid,uid,gid,state,nice,tty,command
+	fmt_pre='#{session_name}:#{window_index}.#{pane_index} #{window_name}'
+	fmt_post=' cmd=#{pane_current_command} path=#{pane_current_path}'
+	fmt_mid=
+	if test $proc -ne 0
+	then fmt_mid=' pid=#{pane_pid}'
+	fi
+
+	if test -n "$update_file"
+	then
+		t=/tmp/tmux-pane-cmp-$$
+		trap "rm -f '$t'" EXIT
+
+		strip_proc < "$update_file" > "$t"
+
+		arg=
+		if test $proc -ne 0
+		then arg=-p
+		fi
+		"$0" $arg | strip_proc | diff -u "$t" -
+
+		exit 0
+	fi
+
+	tmux lsp -aF "$fmt_pre$fmt_mid$fmt_post"
+
+	if test $proc -ne 0
+	then ps -e -o pid,ppid,uid,gid,state,nice,tty,command
+	fi
 fi
