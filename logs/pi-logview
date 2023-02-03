@@ -168,7 +168,10 @@ filter_ssh(){
 					#print "ssh, failed (" failed[ip] " times) but auth'\''d: " ip
 				} else {
 					print "ssh, failed (" failed[ip] " times) and never auth'\''d! " ip \
-						" (" colour_blue "on " failed_dates[ip] " " colour_green "" failed_times[ip] "" colour_off ", as " failed_users[ip] ", desc: " failed_desc[ip] ")"
+						" (" colour_blue "on " failed_dates[ip] " " colour_green \
+						"" failed_times[ip] "" colour_off \
+						", as " failed_users[ip] \
+						", desc: " failed_desc[ip] ")"
 				}
 			}
 		}
