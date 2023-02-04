@@ -163,7 +163,10 @@ filter_ssh(){
 					}
 				}
 		}
+
 		END {
+			sub("  ", " ", today) # "Feb  4" --> "Feb 4"
+
 			for (ip in failed) {
 				if (auth[ip]) {
 					#print "ssh, failed (" failed[ip] " times) but auth'\''d: " ip
