@@ -1,0 +1,13 @@
+#!/bin/sh
+
+set -e
+
+#tmux run-shell -t . pi-logview
+if w=$(tmux new-window -n log-tmp -P 'pi-logview')
+then
+	tmux set-option -wt "$w" remain-on-exit on
+	#tmux bind-key -n q kill-pane
+	# ^ global
+fi
+
+tmux attach "$@"
