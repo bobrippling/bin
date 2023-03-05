@@ -2,23 +2,35 @@
 
 set -e
 
-if test $# -eq 1
-then
-	h="$1"
-	if ! test -e "$h"
-	then
-		echo >&2 "Usage: $0 [history-file]"
-		exit 2
-	fi
-else
-	if test -n "$BASH"
-	then h=~/.bash_history
-	elif test -n "$ZSH_VERSION"
-	then h=~/.zsh_history
-	else
-		echo >&2 "$0: unknown shell"
-		exit 1
-	fi
+usage(){
+	echo >&2 "Usage: $0 [history-file]"
+	exit 2
+}
+
+err_exit(){
+	echo "$*" >&2
+	exit 1
+}
+
+case $# in
+	1)
+		h="$1"
+		;;
+	0)
+		if test -n "$BASH"
+		then h=~/.bash_history
+		elif test -n "$ZSH_VERSION"
+		then h=~/.zsh_history
+		else err_exit "$0: unknown shell"
+		fi
+		;;
+	*)
+		usage
+		;;
+esac
+
+if ! test -e "$h"
+then err_exit "$0: \"$h\" doesn't exist"
 fi
 
 bname="$(basename "$0")"
