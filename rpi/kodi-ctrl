@@ -1,0 +1,40 @@
+#!/bin/sh
+
+cmd(){
+	dir="$1"
+	curl -s "localhost:8080/jsonrpc?Input.$dir" \
+		-X POST \
+		-H 'content-type: application/json' \
+		-d "{\"id\":1,\"jsonrpc\":\"2.0\",\"method\":\"Input.$dir\"}" \
+		>/dev/null
+}
+
+backspace=$(printf '\b')
+
+stty -icanon -echo
+while ch=$(head -c1)
+do
+	case "$ch" in
+		k)
+			cmd Up
+			;;
+		j)
+			cmd Down
+			;;
+		h)
+			cmd Left
+			;;
+		l)
+			cmd Right
+			;;
+		'')
+			cmd Select
+			;;
+		H)
+			cmd Home
+			;;
+		$backspace)
+			cmd Back
+			;;
+	esac
+done
