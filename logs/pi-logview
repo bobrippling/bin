@@ -189,9 +189,9 @@ filter_ssh(){
 
 filter_http(){
 	file_contents \
-		/var/log/lighttpd/access.log \
-		/var/log/lighttpd/access.log.1 \
-		/var/log/lighttpd/access.log.2.gz \
+		/var/log/nginx/access.log \
+		/var/log/nginx/access.log.1 \
+		/var/log/nginx/access.log.2.gz \
 		| awk $awk_colours '
 			{
 				if ($3 == "-") {
