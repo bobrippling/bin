@@ -1,0 +1,28 @@
+#!/bin/sh
+
+usage(){
+	echo >&2 "Usage: $0 [session]"
+	exit 2
+}
+
+case "$#" in
+	0)
+		cat
+		;;
+	1)
+		cat "$1"
+		;;
+	*)
+		usage
+		;;
+esac \
+	| sed 's/path=//' \
+	| awk '{print $2 " " $4}' \
+	| awk '!x[$1]++' \
+	| while read title wd
+	do
+		if ! tmux lsw -F '#W' | grep -x "$title" >/dev/null
+		then tmux new-window -c "$wd" -d -n "$title"
+		else echo "already got $title" >&2
+		fi
+	done
