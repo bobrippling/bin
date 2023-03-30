@@ -29,6 +29,8 @@ if($pam eq 'open_session') {
 		# probably not run from pam
 }
 
+my %ip_records;
+
 usage unless @ARGV == 0;
 
 sub file_contents {
@@ -47,19 +49,30 @@ sub file_contents {
 	return @c;
 }
 
-sub filter_ssh {
+sub add_auth {
+	my($ip, $type) = @_;
+	$ip_records{$ip}->{authed}->{$type}++;
+}
+
+sub add_fail {
+	my ($type, $ip, $host, $user, $date, $time, $desc) = @_;
+
+	push @{$ip_records{$ip}->{fails}}, {
+		type => $type,
+		host => $host,
+		user => $user,
+		date => $date,
+		time => $time,
+		desc => $desc,
+	};
+}
+
+sub parse_ssh {
 	my @contents = file_contents(
 		'/var/log/auth.log',
 		'/var/log/auth.log.1',
 		glob('/var/log/auth.log.[2345].gz'),
 	);
-
-	my %authed; # ips
-	my %failed_users;
-	my %failed_dates;
-	my %failed_times;
-	my %failed_desc;
-	my %failed;
 
 	for my $line (@contents){
 		my @parts = split /\s+/, $line;
@@ -76,42 +89,36 @@ sub filter_ssh {
 			# May 24 02:01:52 <host> sshd[pid]: Bad protocol version identification '\003' from 141.98.9.13 port 64384
 			# 0   1  2        3      4          5
 
+			my $time = $parts[2];
+			my $date = "$parts[0] $parts[1]";
+
 			if($parts[5] eq "Accepted"){
 				my $ip = $parts[10];
-				$authed{$ip} = 1;
-			} elsif($parts[5] eq "Failed"){
+				add_auth($ip, "ssh");
+			}elsif($parts[5] eq "Failed"){
 				my $ip;
+				my $host = $parts[3];
+				my $user;
 
 				if($parts[8] eq "invalid" && $parts[9] eq "user") {
 					$ip = $parts[12];
-					$failed_users{$ip} = "$parts[3] ($parts[10])";
+					$user = $parts[10];
 				} else {
 					$ip = $parts[10];
-					$failed_users{$ip} = "$parts[3] ($parts[8])";
+					$user = $parts[8];
 				}
 
-				$failed{$ip}++;
-				$failed_dates{$ip} = "$parts[0] $parts[1]";
-				$failed_times{$ip} = $parts[2];
-				$failed_desc{$ip} = "invalid user/pw";
-			} elsif($line =~ /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/){
+				my $desc = "invalid user/pw";
+
+				add_fail("ssh", $ip, $host, $user, $date, $time, $desc);
+
+			}elsif($line =~ /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/){
 				my $ip = $&;
-				$failed{$ip}++;
-				$failed_users{$ip} = "?";
-				$failed_dates{$ip} = "$parts[0] $parts[1]";
-				$failed_times{$ip} = $parts[2];
-				$failed_desc{$ip} = "$parts[5] $parts[6]";
-			}
-		}
+				my $host = "?";
+				my $user = "?";
+				my $desc = "$parts[5] $parts[6]";
 
-		for my $ip (keys %failed) {
-			if ($authed{$ip}) {
-				print "ssh, failed ($failed{$ip} times) but auth'd: $ip\n";
-			} else {
-				# TODO
-				#my $chosen_colour = failed_dates[ip] == today ? colour_red : colour_blue
-
-				print "ssh, failed ($failed{$ip} times) and never auth'd! $ip (on $failed_dates{$ip} $failed_times{$ip}, as $failed_users{$ip}, desc: $failed_desc{$ip})\n";
+				add_fail("ssh", $ip, $host, $user, $date, $time, $desc);
 			}
 		}
 		# ' \
