@@ -127,19 +127,12 @@ sub parse_ssh {
 		# # 06/Month/2022 --> 2022/Month/06
 }
 
-sub filter_http {
+sub parse_http {
 	my @contents = file_contents(
 		'/var/log/nginx/access.log',
 		'/var/log/nginx/access.log.1',
 		'/var/log/nginx/access.log.2.gz'
 	);
-
-	my %unauth;
-	my %authed;
-	my %date_part;
-	my %parts;
-	my %private_access;
-	my %useragent_part;
 
 	for my $line (@contents){
 		my @parts = split /\s+/, $line;
@@ -147,8 +140,6 @@ sub filter_http {
 		my $ip = $parts[0];
 
 		if ($parts[2] eq "-") {
-			$unauth{$ip}++;
-
 			my $ua = "";
 			for(my $i = $#parts; $i > 0; $i -= 1){
 				my $bit = $parts[$i];
@@ -160,34 +151,35 @@ sub filter_http {
 			$ua =~ s/ *$//;
 			$ua =~ s/[^(]*\(//;
 			$ua =~ s/\).*//;
-			$useragent_part{$ip} = $ua;
 
+			my $is_private = 0;
 			my $path = $parts[6];
 			if(index($path, "/sibble") != 1
 			&& index($path, "/favicon") != 1
 			&& $path !~ /^\/apple-touch-icon.*\.png$/)
 			{
-				$private_access{$ip} = 1;
+				$is_private = 1;
 			}
 
-			my $when = "$parts[3] $parts[4]";
-			$when =~ s/:/ /;
-			$when =~ s/[][]//g;
-			$date_part{$ip} = $when;
+			my $desc = " ua:$ua";
+			if(!$is_private){
+				$desc .= " (public)";
+			}
+
+			my $when = $parts[3];
+			$when =~ s/:/ /; # 29/Mar/2023:HH:MM:SS
+			#                             ^
+			$when =~ s/\[//;
+			my $tz = $parts[4];
+			$tz =~ s/\]//;
+			(my $date = $when) =~ s/ .*//;
+			(my $time = $when) =~ s/.* //;
+
+			add_fail("http", $ip, "", "", $date, $time, $desc);
 		} else {
-			$authed{$ip}++;
+			add_auth($ip, "http");
 		}
 	}
-
-	for my $ip (keys %unauth){
-		if ($authed{$ip}) {
-			print "http, auth'd: $ip\n";
-		} else {
-			my $desc = $private_access{$ip} ? "" : " (public only)";
-			print "http, never auth'd! $ip ($unauth{$ip} times, on $date_part{$ip}$desc from $useragent_part{$ip})\n";
-		}
-	}
-
 	#	' \
 	#		| sed 's%\([0-9]*\)/\([A-Z][a-z]*\)/\([0-9]*\)%\3/\2/\1%;'"$sed_month_to_num" \
 	#		| sort -k 8
