@@ -3,15 +3,29 @@ use strict;
 use warnings;
 
 sub usage {
-	print STDERR "Usage: $0\n";
+	print STDERR "Usage: $0 [-v]\n";
 	exit 2;
 }
 
-# black=30
-# blue=34
-# red=31
-# yellow=33
-# magenta=35
+my $verbose = 0;
+for(@ARGV){
+	if($_ eq "-v"){
+		$verbose = 1;
+	}else{
+		usage();
+	}
+}
+
+my %colours = (
+	red => "\e[31m",
+	black => "\e[30m",
+	blue => "\e[34m",
+	red => "\e[31m",
+	yellow => "\e[33m",
+	magenta => "\e[35m",
+	off => "\e[0;0m",
+);
+
 # sed_month_to_num="s/Jan/01/; s/Feb/02/; s/Mar/03/; s/Apr/04/; s/May/05/; s/Jun/06/; s/Jul/07/; s/Aug/08/; s/Sep/09/; s/Oct/10/; s/Nov/11/; s/Dec/12/;"
 
 # PAM_SERVICE=sshd
@@ -186,5 +200,49 @@ sub parse_http {
 	#	# 06/Month/2022 --> 2022/Month/06
 }
 
-filter_ssh();
-filter_http();
+parse_ssh();
+parse_http();
+
+
+for my $ip (keys %ip_records) {
+	my $rec = $ip_records{$ip};
+	if ($rec->{authed}) {
+		next unless $verbose;
+
+		my $n = 0;
+		for my $type (keys %{$rec->{authed}}){
+			$n += $rec->{authed}->{$type};
+		}
+		my $types = join(", ", keys %{$rec->{authed}});
+		print "$ip authed, $n accesses over $types\n";
+	} else {
+		# TODO
+		#my $chosen_colour = failed_dates[ip] == today ? colour_red : colour_blue
+
+		my %types;
+		#my($earliest, $latest);
+		#my $descs;
+		#my $n = 0;
+
+		for my $entry (@{$rec->{fails}}){
+			$types{$entry->{type}}++;
+			#$earliest = $entry->{}
+		}
+
+		my $n = 0;
+		for my $type (keys %types) {
+			$n += $types{$type};
+		}
+
+		my $types_desc = join(", ", keys %types);
+		my $s = $n > 1 ? "s" : "";
+		print "$colours{red}$n fail$s$colours{off} for $ip ($types_desc)\n";
+
+		# ssh:
+		# print "ssh, failed ($failed{$ip} times) and never auth'd! $ip (on $failed_dates{$ip} $failed_times{$ip}, as $failed_users{$ip}, desc: $failed_desc{$ip})\n";
+
+		# http:
+		# my $desc = $private_access{$ip} ? "" : " (public only)";
+		# print "http, never auth'd! $ip ($unauth{$ip} times, on $date_part{$ip}$desc from $useragent_part{$ip})\n";
+	}
+}
