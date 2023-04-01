@@ -2,6 +2,10 @@
 use strict;
 use warnings;
 
+use Time::Piece ();
+
+my $today = Time::Piece->new;
+
 sub usage {
 	print STDERR "Usage: $0 [-v]\n";
 	exit 2;
@@ -17,16 +21,24 @@ for(@ARGV){
 }
 
 my %colours = (
-	red => "\e[31m",
 	black => "\e[30m",
-	blue => "\e[34m",
 	red => "\e[31m",
+	green => "\e[32m",
 	yellow => "\e[33m",
+	blue => "\e[34m",
 	magenta => "\e[35m",
+	cyan => "\e[36m",
+	white => "\e[37m",
 	off => "\e[0;0m",
 );
 
-# sed_month_to_num="s/Jan/01/; s/Feb/02/; s/Mar/03/; s/Apr/04/; s/May/05/; s/Jun/06/; s/Jul/07/; s/Aug/08/; s/Sep/09/; s/Oct/10/; s/Nov/11/; s/Dec/12/;"
+my %extras = (
+	extra => "magenta",
+	ip => "blue",
+	types => "yellow",
+	warn => "red",
+);
+$colours{$_} = $colours{$extras{$_}} for keys %extras;
 
 # PAM_SERVICE=sshd
 # PAM_RHOST=127.0.0.1
@@ -45,7 +57,17 @@ if($pam eq 'open_session') {
 
 my %ip_records;
 
-usage unless @ARGV == 0;
+sub parse_time {
+	my($fmt, $str) = @_;
+
+	my $when = eval { Time::Piece->strptime($str, $fmt) };
+	if(length($@)){
+		# errror
+		warn "couldn't parse \"$str\" as \"$fmt\"\n";
+		return undef;
+	}
+	return $when;
+}
 
 sub file_contents {
 	my @c;
@@ -69,20 +91,20 @@ sub add_auth {
 }
 
 sub add_fail {
-	my ($type, $ip, $host, $user, $date, $time, $desc) = @_;
+	my ($type, $ip, $host, $user, $timestamp, $desc) = @_;
 
 	push @{$ip_records{$ip}->{fails}}, {
 		type => $type,
 		host => $host,
 		user => $user,
-		date => $date,
-		time => $time,
+		timestamp => $timestamp,
 		desc => $desc,
 	};
 }
 
 sub parse_ssh {
 	my @contents = file_contents(
+		#"eg.log"
 		'/var/log/auth.log',
 		'/var/log/auth.log.1',
 		glob('/var/log/auth.log.[2345].gz'),
@@ -103,8 +125,7 @@ sub parse_ssh {
 			# May 24 02:01:52 <host> sshd[pid]: Bad protocol version identification '\003' from 141.98.9.13 port 64384
 			# 0   1  2        3      4          5
 
-			my $time = $parts[2];
-			my $date = "$parts[0] $parts[1]";
+			my $timestamp = parse_time("%b %d %H:%M:%S %Y", "$parts[0] $parts[1] $parts[2] " . $today->year);
 
 			if($parts[5] eq "Accepted"){
 				my $ip = $parts[10];
@@ -124,7 +145,7 @@ sub parse_ssh {
 
 				my $desc = "invalid user/pw";
 
-				add_fail("ssh", $ip, $host, $user, $date, $time, $desc);
+				add_fail("ssh", $ip, $host, $user, $timestamp, $desc);
 
 			}elsif($line =~ /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/){
 				my $ip = $&;
@@ -132,13 +153,9 @@ sub parse_ssh {
 				my $user = "?";
 				my $desc = "$parts[5] $parts[6]";
 
-				add_fail("ssh", $ip, $host, $user, $date, $time, $desc);
+				add_fail("ssh", $ip, $host, $user, $timestamp, $desc);
 			}
 		}
-		# ' \
-		# 	| sed 's%on \([A-Za-z]*\) \([0-9]*\) %on yyyy/\1/\2 %; s%/\([0-9]\) %/0\1 %; '"$sed_month_to_num" \
-		# 	| sort -k 10
-		# # 06/Month/2022 --> 2022/Month/06
 }
 
 sub parse_http {
@@ -180,69 +197,117 @@ sub parse_http {
 				$desc .= " (public)";
 			}
 
-			my $when = $parts[3];
-			$when =~ s/:/ /; # 29/Mar/2023:HH:MM:SS
-			#                             ^
-			$when =~ s/\[//;
-			my $tz = $parts[4];
-			$tz =~ s/\]//;
-			(my $date = $when) =~ s/ .*//;
-			(my $time = $when) =~ s/.* //;
+			# [31/Mar/2023:06:58:45 +0100]
+			my $timestamp = parse_time("[%d/%b/%Y:%H:%M:%S %z]", "$parts[3] $parts[4]");
 
-			add_fail("http", $ip, "", "", $date, $time, $desc);
+			add_fail("http", $ip, "", "", $timestamp, $desc);
 		} else {
 			add_auth($ip, "http");
 		}
 	}
-	#	' \
-	#		| sed 's%\([0-9]*\)/\([A-Z][a-z]*\)/\([0-9]*\)%\3/\2/\1%;'"$sed_month_to_num" \
-	#		| sort -k 8
-	#	# 06/Month/2022 --> 2022/Month/06
 }
 
 parse_ssh();
 parse_http();
 
 
+if($verbose){
+	for my $ip (keys %ip_records) {
+		my $rec = $ip_records{$ip};
+		if ($rec->{authed}) {
+			my $n = 0;
+			for my $type (keys %{$rec->{authed}}){
+				$n += $rec->{authed}->{$type};
+			}
+			my $types = join(", ", keys %{$rec->{authed}});
+			print "$colours{ip}$ip$colours{off} authed, $n accesses over $colours{types}$types$colours{off}\n";
+		}
+	}
+}
+
+my @sorted;
 for my $ip (keys %ip_records) {
 	my $rec = $ip_records{$ip};
-	if ($rec->{authed}) {
-		next unless $verbose;
 
-		my $n = 0;
-		for my $type (keys %{$rec->{authed}}){
-			$n += $rec->{authed}->{$type};
-		}
-		my $types = join(", ", keys %{$rec->{authed}});
-		print "$ip authed, $n accesses over $types\n";
-	} else {
-		# TODO
-		#my $chosen_colour = failed_dates[ip] == today ? colour_red : colour_blue
+	next if $rec->{authed};
 
-		my %types;
-		#my($earliest, $latest);
-		#my $descs;
-		#my $n = 0;
+	# TODO
+	#my $chosen_colour = failed_dates[ip] == today ? colour_red : colour_blue
 
-		for my $entry (@{$rec->{fails}}){
-			$types{$entry->{type}}++;
-			#$earliest = $entry->{}
-		}
+	my %types;
+	my($earliest, $latest);
 
-		my $n = 0;
-		for my $type (keys %types) {
-			$n += $types{$type};
-		}
+	my $n = 0;
+	for my $entry (@{$rec->{fails}}){
+		$types{$entry->{type}}++;
+		$n += 1;
 
-		my $types_desc = join(", ", keys %types);
-		my $s = $n > 1 ? "s" : "";
-		print "$colours{red}$n fail$s$colours{off} for $ip ($types_desc)\n";
-
-		# ssh:
-		# print "ssh, failed ($failed{$ip} times) and never auth'd! $ip (on $failed_dates{$ip} $failed_times{$ip}, as $failed_users{$ip}, desc: $failed_desc{$ip})\n";
-
-		# http:
-		# my $desc = $private_access{$ip} ? "" : " (public only)";
-		# print "http, never auth'd! $ip ($unauth{$ip} times, on $date_part{$ip}$desc from $useragent_part{$ip})\n";
+		my $timestamp = $entry->{timestamp};
+		$earliest = $timestamp if !defined($earliest) || $timestamp < $earliest;
+		$latest = $timestamp if !defined($latest) || $timestamp > $latest;
 	}
+
+	push @sorted, {
+		ip => $ip,
+		fail_count => $n,
+		types => [keys %types],
+		earliest => $earliest,
+		latest => $latest,
+	};
+}
+
+# sort by latest, then by count
+@sorted = sort {
+	my $d = $a->{latest} <=> $b->{latest};
+
+	$d || ($a->{fail_count} <=> $b->{fail_count})
+} @sorted;
+
+for my $rec (@sorted) {
+	my $ip = $rec->{ip};
+	my $n = $rec->{fail_count};
+
+	my $latest = $rec->{latest};
+	my $days_ago = int(($today - $latest)->days);
+
+	my $latest_str;
+	if($days_ago == 0){
+		$latest_str = "$colours{warn}today$colours{off}";
+	}elsif($days_ago < 1){
+		$latest_str = "$days_ago days ago";
+	}elsif($days_ago <= 7){
+		my $s = $days_ago > 1 ? "s" : "";
+		$latest_str = "$days_ago day$s ago";
+
+		if($days_ago < 3){
+			$latest_str .= " @ " . $latest->strftime("%H:%M");
+		}
+	}else{
+		$latest_str = $latest->strftime("%Y-%m-%d");
+	}
+
+	my $extra = "";
+	if($n > 1){
+		my $diff = $rec->{latest} - $rec->{earliest};
+
+		if(int($diff->days) > 1){
+			$extra = " (over " . int($diff->days) . " days)";
+		}elsif(int($diff->hours) > 1){
+			$extra = " (over " . int($diff->hours) . " hours)";
+		}elsif(int($diff->minutes) > 1){
+			$extra = " (over " . int($diff->minutes) . " minutes)";
+		}else{
+			my $s = $diff->seconds == 1 ? "" : "s";
+			$extra = " (over " . int($diff->seconds) . " second$s)";
+		}
+
+		$extra = "$colours{extra}$extra$colours{off}";
+	}
+
+	my $types_desc = join(", ", @{$rec->{types}});
+	my $s = $n > 1 ? "s" : "";
+
+	my $ip_col = "$colours{ip}$ip$colours{off}";
+	my $types_col = "$colours{types}$types_desc$colours{off}";
+	print "$n fail$s for $ip_col ($types_col), latest $latest_str$extra\n";
 }
