@@ -178,23 +178,13 @@ sub parse_http {
 
 				last if substr($bit, 0, 1) eq '"';
 			}
+			$ua =~ s/^"|" *$//g;
 
-			$ua =~ s/ *$//;
-			$ua =~ s/[^(]*\(//;
-			$ua =~ s/\).*//;
+			my $desc = "ua:$ua";
 
-			my $is_private = 0;
 			my $path = $parts[6];
-			if(index($path, "/sibble") != 1
-			&& index($path, "/favicon") != 1
-			&& $path !~ /^\/apple-touch-icon.*\.png$/)
-			{
-				$is_private = 1;
-			}
-
-			my $desc = " ua:$ua";
-			if(!$is_private){
-				$desc .= " (public)";
+			if($path =~ /^\/(sibble|favicon|^\/apple-touch-icon.*\.png$)/){
+				$desc = "{public} $desc";
 			}
 
 			# [31/Mar/2023:06:58:45 +0100]
@@ -236,6 +226,7 @@ for my $ip (keys %ip_records) {
 
 	my %types;
 	my($earliest, $latest);
+	my $latest_desc;
 
 	my $n = 0;
 	for my $entry (@{$rec->{fails}}){
@@ -244,7 +235,10 @@ for my $ip (keys %ip_records) {
 
 		my $timestamp = $entry->{timestamp};
 		$earliest = $timestamp if !defined($earliest) || $timestamp < $earliest;
-		$latest = $timestamp if !defined($latest) || $timestamp > $latest;
+		if(!defined($latest) || $timestamp > $latest){
+			$latest = $timestamp;
+			$latest_desc = $entry->{desc};
+		}
 	}
 
 	push @sorted, {
@@ -253,6 +247,7 @@ for my $ip (keys %ip_records) {
 		types => [keys %types],
 		earliest => $earliest,
 		latest => $latest,
+		latest_desc => $latest_desc,
 	};
 }
 
@@ -306,6 +301,11 @@ for my $rec (@sorted) {
 
 	my $types_desc = join(", ", @{$rec->{types}});
 	my $s = $n > 1 ? "s" : "";
+	my $latest_desc = $rec->{latest_desc};
+
+	if($latest_desc){
+		$extra .= " $colours{extra}($latest_desc)$colours{off}";
+	}
 
 	my $ip_col = "$colours{ip}$ip$colours{off}";
 	my $types_col = "$colours{types}$types_desc$colours{off}";
