@@ -77,7 +77,7 @@ sub file_contents {
 			push @c, split /\n/, `zcat '$_'`;
 		}else{
 			open(my $fh, '<', $_) or die "open $_: $!";
-			push @c, <$fh>;
+			push @c, map { chomp; $_ } <$fh>;
 			close($fh);
 		}
 	}
