@@ -37,6 +37,7 @@ my %extras = (
 	ip => "blue",
 	types => "yellow",
 	warn => "red",
+	banned => "magenta",
 );
 $colours{$_} = $colours{$extras{$_}} for keys %extras;
 
@@ -56,6 +57,7 @@ if($pam eq 'open_session') {
 }
 
 my %ip_records;
+my @banned;
 
 sub parse_time {
 	my($fmt, $str) = @_;
@@ -197,9 +199,41 @@ sub parse_http {
 	}
 }
 
+sub parse_banned {
+	for(file_contents("/etc/pi-bans")){
+		s/\s*#.*//;
+		push @banned, $_ if length;
+	}
+}
+
+sub ip_to_hex {
+	return hex(join("", map { sprintf "%x", $_ } split(/\./, shift())));
+}
+
+sub is_banned {
+	my $ip = ip_to_hex(shift());
+
+	for my $entry (@banned){
+		my($addr, $mask);
+		if($entry =~ m@(.*)/(.*)@){
+			$addr = $1; $mask = $2;
+		}else{
+			$addr = $entry; $mask = 32;
+		}
+
+		my $addr_hex = ip_to_hex($addr);
+		$addr_hex >>= ($mask / 4);
+		my $ip_shift = $ip >> ($mask / 4);
+
+		return 1 if $addr_hex == $ip_shift;
+	}
+
+	return 0;
+}
+
 parse_ssh();
 parse_http();
-
+parse_banned();
 
 if($verbose){
 	for my $ip (keys %ip_records) {
@@ -306,8 +340,14 @@ for my $rec (@sorted) {
 	if($latest_desc){
 		$extra .= " $colours{extra}($latest_desc)$colours{off}";
 	}
+	my $ip_col;
+	if(is_banned($ip)){
+		$ip_col = "$colours{banned}$ip$colours{off}";
+		$extra .= " $colours{banned}(banned)$colours{off}";
+	}else{
+		$ip_col = "$colours{ip}$ip$colours{off}";
+	}
 
-	my $ip_col = "$colours{ip}$ip$colours{off}";
 	my $types_col = "$colours{types}$types_desc$colours{off}";
 	print "$n fail$s for $ip_col ($types_col), latest $latest_str$extra\n";
 }
