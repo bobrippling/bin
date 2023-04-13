@@ -40,6 +40,9 @@ my %extras = (
 	banned => "magenta",
 );
 $colours{$_} = $colours{$extras{$_}} for keys %extras;
+if(!-t 1){
+	$colours{$_} = "" for keys %colours;
+}
 
 # PAM_SERVICE=sshd
 # PAM_RHOST=127.0.0.1
