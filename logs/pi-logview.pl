@@ -33,11 +33,11 @@ my %colours = (
 );
 
 my %extras = (
-	extra => "magenta",
+	duration => "magenta",
 	ip => "blue",
 	types => "yellow",
 	warn => "red",
-	banned => "magenta",
+	banned => "cyan",
 );
 $colours{$_} = $colours{$extras{$_}} for keys %extras;
 if(!-t 1){
@@ -258,9 +258,6 @@ for my $ip (keys %ip_records) {
 
 	next if $rec->{authed};
 
-	# TODO
-	#my $chosen_colour = failed_dates[ip] == today ? colour_red : colour_blue
-
 	my %types;
 	my($earliest, $latest);
 	my $latest_desc;
@@ -333,7 +330,7 @@ for my $rec (@sorted) {
 			$extra = " (over " . int($diff->seconds) . " second$s)";
 		}
 
-		$extra = "$colours{extra}$extra$colours{off}";
+		$extra = "$colours{duration}$extra$colours{off}";
 	}
 
 	my $types_desc = join(", ", @{$rec->{types}});
