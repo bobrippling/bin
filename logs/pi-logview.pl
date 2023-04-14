@@ -34,6 +34,7 @@ my %colours = (
 
 my %extras = (
 	duration => "magenta",
+	severest => "green",
 	ip => "blue",
 	types => "yellow",
 	warn => "red",
@@ -96,7 +97,7 @@ sub add_auth {
 }
 
 sub add_fail {
-	my ($type, $ip, $host, $user, $timestamp, $desc) = @_;
+	my ($type, $ip, $host, $user, $timestamp, $desc, $desc_sev) = @_;
 
 	push @{$ip_records{$ip}->{fails}}, {
 		type => $type,
@@ -104,6 +105,7 @@ sub add_fail {
 		user => $user,
 		timestamp => $timestamp,
 		desc => $desc,
+		desc_sev => $desc_sev,
 	};
 }
 
@@ -149,16 +151,56 @@ sub parse_ssh {
 				}
 
 				my $desc = "invalid user/pw";
+				my $desc_sev = 10;
 
-				add_fail("ssh", $ip, $host, $user, $timestamp, $desc);
+				add_fail("ssh", $ip, $host, $user, $timestamp, $desc, $desc_sev);
 
 			}elsif($line =~ /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/){
 				my $ip = $&;
 				my $host = "?";
 				my $user = "?";
-				my $desc = "$parts[5] $parts[6]";
 
-				add_fail("ssh", $ip, $host, $user, $timestamp, $desc);
+				my $desc;
+				my $desc_sev;
+
+				if("$parts[5] $parts[6]" eq "Connection closed"){
+					$desc = "eof";
+					$desc_sev = 0;
+				}elsif($parts[5] eq "Disconnected"){
+					my $user = $parts[8];
+					$desc = "disconnect:$user";
+					$desc_sev = 0;
+				}elsif("$parts[5] $parts[6]" eq "Invalid user"){
+					my $user = $parts[7];
+					$desc = "invalid:$user";
+					$desc_sev = 8;
+				}elsif(
+					join(" ", @parts[5 .. 8]) eq "PAM 1 more authentication" ||
+					$parts[5] eq "pam_unix(sshd:auth):"
+				){
+					my %pam = (
+						tty => "<unknown>",
+						user => "<unknown>",
+					);
+					for my $eq (@parts[8 .. $#parts]){
+						if($eq =~ /(.*)=(.*)/){
+							$pam{$1} = $2;
+						}
+					}
+					$desc = "pam:$pam{tty},$pam{user}";
+					$desc_sev = 8;
+				}elsif("$parts[5] $parts[6]" eq "Received  disconnect"){
+					$desc = "disconnect-no-user";
+					$desc_sev = 0;
+				}elsif("$parts[5] $parts[6]" eq "banner exchange:"){
+					$desc = "banner-exchange";
+					$desc_sev = 1;
+				}else{
+					$desc = "unknown ($parts[5] $parts[6])";
+					$desc_sev = 8;
+				}
+
+				add_fail("ssh", $ip, $host, $user, $timestamp, $desc, $desc_sev);
 			}
 		}
 }
@@ -186,16 +228,18 @@ sub parse_http {
 			$ua =~ s/^"|" *$//g;
 
 			my $desc = "ua:$ua";
+			my $desc_sev = 1;
 
 			my $path = $parts[6];
 			if($path =~ /^\/(sibble|favicon|^\/apple-touch-icon.*\.png$)/){
 				$desc = "{public} $desc";
+				$desc_sev = 0;
 			}
 
 			# [31/Mar/2023:06:58:45 +0100]
 			my $timestamp = parse_time("[%d/%b/%Y:%H:%M:%S %z]", "$parts[3] $parts[4]");
 
-			add_fail("http", $ip, "", "", $timestamp, $desc);
+			add_fail("http", $ip, "", "", $timestamp, $desc, $desc_sev);
 		} else {
 			add_auth($ip, "http");
 		}
@@ -261,6 +305,7 @@ for my $ip (keys %ip_records) {
 	my %types;
 	my($earliest, $latest);
 	my $latest_desc;
+	my($severest_desc, $severest_desc_val) = ("", 0);
 
 	my $n = 0;
 	for my $entry (@{$rec->{fails}}){
@@ -273,6 +318,11 @@ for my $ip (keys %ip_records) {
 			$latest = $timestamp;
 			$latest_desc = $entry->{desc};
 		}
+		if($entry->{desc_sev} >= $severest_desc_val){
+			$severest_desc_val = $entry->{desc_sev};
+			$severest_desc = $entry->{desc};
+		}
+		#print "$ip: $entry->{desc_sev} @ $entry->{desc}\n";
 	}
 
 	push @sorted, {
@@ -282,6 +332,7 @@ for my $ip (keys %ip_records) {
 		earliest => $earliest,
 		latest => $latest,
 		latest_desc => $latest_desc,
+		severest_desc => $severest_desc,
 	};
 }
 
@@ -335,10 +386,10 @@ for my $rec (@sorted) {
 
 	my $types_desc = join(", ", @{$rec->{types}});
 	my $s = $n > 1 ? "s" : "";
-	my $latest_desc = $rec->{latest_desc};
+	my $severest_desc = $rec->{severest_desc};
 
-	if($latest_desc){
-		$extra .= " $colours{extra}($latest_desc)$colours{off}";
+	if($severest_desc){
+		$extra .= " $colours{severest}($severest_desc)$colours{off}";
 	}
 	my $ip_col;
 	if(is_banned($ip)){
