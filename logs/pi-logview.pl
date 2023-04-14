@@ -42,7 +42,10 @@ my %extras = (
 );
 $colours{$_} = $colours{$extras{$_}} for keys %extras;
 if(!-t 1){
-	$colours{$_} = "" for keys %colours;
+	# keep colours if we're invoked via PAM
+	unless(($ENV{PAM_TYPE} || "") eq "open_session"){
+		$colours{$_} = "" for keys %colours;
+	}
 }
 
 # PAM_SERVICE=sshd
