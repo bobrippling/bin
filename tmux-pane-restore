@@ -10,6 +10,9 @@ case "$#" in
 		cat
 		;;
 	1)
+		if echo "$1" | grep '^-' >/dev/null
+		then usage
+		fi
 		cat "$1"
 		;;
 	*)
