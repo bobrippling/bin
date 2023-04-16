@@ -339,6 +339,26 @@ for my $ip (keys %ip_records) {
 	};
 }
 
+sub timestamp_to_approx {
+	my $t = shift();
+	my $days_ago = int(($today - $t)->days);
+	if($days_ago == 0){
+		return "$colours{warn}today$colours{off}";
+	}elsif($days_ago < 1){
+		return "$days_ago days ago";
+	}elsif($days_ago <= 7){
+		my $s = $days_ago > 1 ? "s" : "";
+		my $r = "$days_ago day$s ago";
+
+		if($days_ago < 3){
+			$r .= " @ " . $t->strftime("%H:%M");
+		}
+		return $r;
+	}else{
+		return $t->strftime("%Y-%m-%d");
+	}
+}
+
 # sort by latest, then by count
 @sorted = sort {
 	my $d = $a->{latest} <=> $b->{latest};
@@ -351,23 +371,8 @@ for my $rec (@sorted) {
 	my $n = $rec->{fail_count};
 
 	my $latest = $rec->{latest};
-	my $days_ago = int(($today - $latest)->days);
 
-	my $latest_str;
-	if($days_ago == 0){
-		$latest_str = "$colours{warn}today$colours{off}";
-	}elsif($days_ago < 1){
-		$latest_str = "$days_ago days ago";
-	}elsif($days_ago <= 7){
-		my $s = $days_ago > 1 ? "s" : "";
-		$latest_str = "$days_ago day$s ago";
-
-		if($days_ago < 3){
-			$latest_str .= " @ " . $latest->strftime("%H:%M");
-		}
-	}else{
-		$latest_str = $latest->strftime("%Y-%m-%d");
-	}
+	my $latest_str = timestamp_to_approx($latest);
 
 	my $extra = "";
 	if($n > 1){
