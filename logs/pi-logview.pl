@@ -7,14 +7,21 @@ use Time::Piece ();
 my $today = Time::Piece->new;
 
 sub usage {
-	print STDERR "Usage: $0 [-v]\n";
+	print STDERR "Usage: $0 [-v] [--ip=<ip>]\n";
 	exit 2;
 }
 
 my $verbose = 0;
-for(@ARGV){
+my $filter_ip;
+for(my $i = 0; $i < @ARGV; $i++){
+	$_ = $ARGV[$i];
 	if($_ eq "-v"){
 		$verbose = 1;
+	}elsif($_ =~ /^--ip=(.*)/){
+		$filter_ip = $1;
+	}elsif($_ eq "--ip"){
+		usage if ++$i == @ARGV;
+		$filter_ip = $_ = $ARGV[$i];
 	}else{
 		usage();
 	}
@@ -284,6 +291,21 @@ sub is_banned {
 parse_ssh();
 parse_http();
 parse_banned();
+
+if($filter_ip){
+	my $rec = $ip_records{$filter_ip};
+
+	die "$0: no record for $filter_ip\n" unless $rec;
+
+	print "$filter_ip: authed\n" if $rec->{authed};
+
+	for my $fail (@{$rec->{fails}}){
+		my $when = timestamp_to_approx($fail->{timestamp});
+
+		print "$when: $fail->{type} failure from $fail->{host}, user $fail->{user} ($fail->{desc})\n";
+	}
+	exit;
+}
 
 if($verbose){
 	for my $ip (keys %ip_records) {
