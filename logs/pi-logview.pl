@@ -7,21 +7,24 @@ use Time::Piece ();
 my $today = Time::Piece->new;
 
 sub usage {
-	print STDERR "Usage: $0 [-v] [--ip=<ip>]\n";
+	print STDERR "Usage: $0 [-v] [-d] [--cidr=<cidr>]\n";
 	exit 2;
 }
 
 my $verbose = 0;
-my $filter_ip;
+my $debug = 0;
+my $filter_cidr;
 for(my $i = 0; $i < @ARGV; $i++){
 	$_ = $ARGV[$i];
 	if($_ eq "-v"){
 		$verbose = 1;
-	}elsif($_ =~ /^--ip=(.*)/){
-		$filter_ip = $1;
-	}elsif($_ eq "--ip"){
+	}elsif($_ eq "-d"){
+		$debug = 1;
+	}elsif($_ =~ /^--cidr=(.*)/){
+		$filter_cidr = $1;
+	}elsif($_ eq "--cidr"){
 		usage if ++$i == @ARGV;
-		$filter_ip = $_ = $ARGV[$i];
+		$filter_cidr = $_ = $ARGV[$i];
 	}else{
 		usage();
 	}
@@ -264,27 +267,50 @@ sub parse_banned {
 }
 
 sub ip_to_hex {
-	return hex(join("", map { sprintf "%x", $_ } split(/\./, shift())));
+	my $s = shift();
+
+	if(index($s, ":") >= 0){
+		warn "$0: skipping IPv6 address (\"$s\")\n" if $debug;
+		return 0
+	}
+
+	# ipv4
+	if(index($s, '.') == -1){
+		# already a number
+		return $s;
+	}
+	return hex(join("", map { sprintf "%02x", $_ } split(/\./, $s)));
+}
+
+sub cidr_match {
+	my($cidr, $candidate) = @_; # (string, string|number)
+
+	my($addr, $mask);
+	if($cidr =~ m@(.*)/(.*)@){
+		$addr = $1;
+		$mask = $2;
+	}else{
+		$addr = $cidr;
+		$mask = 32;
+	}
+	my $shift = 32 - $mask;
+
+	# addr: string -> number
+	my $addr_hex = ip_to_hex($addr);
+	my $addr_hex_shifted = $addr_hex >> $shift;
+
+	$candidate = ip_to_hex($candidate);
+	my $candidate_shifted = $candidate >> $shift;
+
+	return $addr_hex_shifted == $candidate_shifted;
 }
 
 sub is_banned {
 	my $ip = ip_to_hex(shift());
 
 	for my $entry (@banned){
-		my($addr, $mask);
-		if($entry =~ m@(.*)/(.*)@){
-			$addr = $1; $mask = $2;
-		}else{
-			$addr = $entry; $mask = 32;
-		}
-
-		my $addr_hex = ip_to_hex($addr);
-		$addr_hex >>= ($mask / 4);
-		my $ip_shift = $ip >> ($mask / 4);
-
-		return 1 if $addr_hex == $ip_shift;
+		return 1 if cidr_match($entry, $ip);
 	}
-
 	return 0;
 }
 
@@ -292,19 +318,36 @@ parse_ssh();
 parse_http();
 parse_banned();
 
-if($filter_ip){
-	my $rec = $ip_records{$filter_ip};
+if($filter_cidr){
+	my $found = 0;
+	for my $ip (keys %ip_records){
+		next unless cidr_match($filter_cidr, $ip);
+		$found = 1;
 
-	die "$0: no record for $filter_ip\n" unless $rec;
+		my $rec = $ip_records{$ip};
 
-	print "$filter_ip: authed\n" if $rec->{authed};
+		print "$colours{ip}$ip$colours{off}"
+		. (is_banned($ip) ? " $colours{banned}(banned)$colours{off}" : "")
+		. ":\n";
 
-	for my $fail (@{$rec->{fails}}){
-		my $when = timestamp_to_approx($fail->{timestamp});
+		print "\tauthed\n" if $rec->{authed};
 
-		print "$when: $fail->{type} failure from $fail->{host}, user $fail->{user} ($fail->{desc})\n";
+		my @sorted = sort {
+			$a->{timestamp} <=> $b->{timestamp}
+		} @{$rec->{fails}};
+
+		for my $fail (@sorted){
+			my $when = timestamp_to_approx($fail->{timestamp});
+
+			print "\t$when: $colours{types}$fail->{type}$colours{off} "
+			. "failure from $fail->{host}, "
+			. "user $fail->{user} "
+			. "($colours{severest}$fail->{desc}$colours{off})\n";
+		}
 	}
-	exit;
+
+	exit if $found;
+	die "$0: no records for $filter_cidr\n";
 }
 
 if($verbose){
