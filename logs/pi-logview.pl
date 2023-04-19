@@ -364,21 +364,22 @@ for my $ip (keys %ip_records) {
 sub timestamp_to_approx {
 	my $t = shift();
 	my $days_ago = int(($today - $t)->days);
+	my $r;
 	if($days_ago == 0){
-		return "$colours{warn}today$colours{off}";
+		$r = "$colours{warn}within-24-hrs$colours{off}";
 	}elsif($days_ago < 1){
-		return "$days_ago days ago";
+		$r = "$days_ago days ago";
 	}elsif($days_ago <= 7){
 		my $s = $days_ago > 1 ? "s" : "";
-		my $r = "$days_ago day$s ago";
-
-		if($days_ago < 3){
-			$r .= " @ " . $t->strftime("%H:%M");
-		}
-		return $r;
+		$r = "$days_ago day$s ago";
 	}else{
 		return $t->strftime("%Y-%m-%d");
 	}
+
+	if($days_ago < 3){
+		$r .= " @ " . $t->strftime("%H:%M");
+	}
+	return $r;
 }
 
 # sort by latest, then by count
