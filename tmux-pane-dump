@@ -9,20 +9,50 @@ usage(){
 	exit 2
 }
 
-if test "$1" = restore
-then
-	if test $# -ne 2
-	then usage
-	fi
+is_restore(){
+	test "$1" = restore
+}
 
-	while read id title cmd path
-	do
-		wd=${path%*=}
-		if echo "$title" | grep '^>' >/dev/null
-		then echo tmux new-window -c "$wd" -d
-		else echo tmux new-window -c "$wd" -d -n "$title"
-		fi
-	done <"$2"
+if is_restore
+then
+	case "$#" in
+		0)
+			echo >&2 unreachable
+			exit 3
+			;;
+		1)
+			cat
+			;;
+		2)
+			if echo "$1" | grep '^-' >/dev/null
+			then usage
+			fi
+			cat "$1"
+			;;
+		*)
+			usage
+			;;
+	esac \
+		| sed 's/path=//' \
+		| awk '{print $2 " " $4}' \
+		| awk '!x[$1]++' \
+		| while read title wd
+		do
+			new_title=$title
+			if echo "$title" | grep '^>' >/dev/null
+			then new_title=
+			fi
+
+			if ! tmux lsw -F '#W' | grep -x "$title" >/dev/null
+			then
+				if test -z "$new_title"
+				then tmux new-window -c "$wd" -d
+				else tmux new-window -c "$wd" -d -n "$new_title"
+				fi
+			else
+				echo "already got $title" >&2
+			fi
+		done
 else
 	proc=0
 	update_file=
