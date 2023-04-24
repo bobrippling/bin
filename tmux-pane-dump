@@ -9,21 +9,12 @@ usage(){
 	exit 2
 }
 
-is_restore(){
-	test "$1" = restore
-}
-
-if is_restore
-then
+restore(){
 	case "$#" in
 		0)
-			echo >&2 unreachable
-			exit 3
-			;;
-		1)
 			cat
 			;;
-		2)
+		1)
 			if echo "$1" | grep '^-' >/dev/null
 			then usage
 			fi
@@ -53,7 +44,9 @@ then
 				echo "already got $title" >&2
 			fi
 		done
-else
+}
+
+dump(){
 	proc=0
 	update_file=
 	while test $# -ne 0
@@ -104,4 +97,19 @@ else
 	if test $proc -ne 0
 	then ps -e -o pid,ppid,uid,gid,state,nice,tty,command
 	fi
-fi
+}
+
+case "${0##*/}" in
+	tmux-pane-restore)
+		restore "$@"
+		;;
+	*)
+		if test "$1" = restore
+		then
+			shift
+			restore "$@"
+		else
+			dump "$@"
+		fi
+		;;
+esac
