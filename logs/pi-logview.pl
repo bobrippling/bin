@@ -218,6 +218,9 @@ sub parse_ssh {
 				}elsif("$parts[5] $parts[6]" eq "banner exchange:"){
 					$desc = "banner-exchange";
 					$desc_sev = SEV_PROTO_MISMATCH;
+				}elsif("$parts[5] $parts[6]" eq "Connection reset"){
+					$desc = "conn-reset";
+					$desc_sev = SEV_DISCONNECT;
 				}else{
 					$desc = "unknown ($parts[5] $parts[6])";
 					$desc_sev = SEV_UNKNOWN;
