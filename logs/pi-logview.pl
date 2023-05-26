@@ -4,6 +4,16 @@ use warnings;
 
 use Time::Piece ();
 
+# bigger => more severe
+use constant {
+	SEV_SAFE => 0,
+	SEV_DISCONNECT  => 1,
+	SEV_PROTO_MISMATCH => 2,
+	SEV_UNKNOWN => 3,
+	SEV_DISCONNECT_POSTAUTH => 4,
+	SEV_LOGIN_ATTEMPT => 5,
+};
+
 my $today = Time::Piece->new;
 
 sub usage {
@@ -164,7 +174,7 @@ sub parse_ssh {
 				}
 
 				my $desc = "invalid user/pw";
-				my $desc_sev = 10;
+				my $desc_sev = SEV_LOGIN_ATTEMPT;
 
 				add_fail("ssh", $ip, $host, $user, $timestamp, $desc, $desc_sev);
 
@@ -178,15 +188,15 @@ sub parse_ssh {
 
 				if("$parts[5] $parts[6]" eq "Connection closed"){
 					$desc = "eof";
-					$desc_sev = 0;
+					$desc_sev = SEV_DISCONNECT;
 				}elsif($parts[5] eq "Disconnected"){
 					my $user = $parts[8];
 					$desc = "disconnect:$user";
-					$desc_sev = 0;
+					$desc_sev = SEV_DISCONNECT_POSTAUTH;
 				}elsif("$parts[5] $parts[6]" eq "Invalid user"){
 					my $user = $parts[7];
 					$desc = "invalid:$user";
-					$desc_sev = 8;
+					$desc_sev = SEV_LOGIN_ATTEMPT;
 				}elsif(
 					join(" ", @parts[5 .. 8]) eq "PAM 1 more authentication" ||
 					$parts[5] eq "pam_unix(sshd:auth):"
@@ -201,16 +211,16 @@ sub parse_ssh {
 						}
 					}
 					$desc = "pam:$pam{tty},$pam{user}";
-					$desc_sev = 8;
+					$desc_sev = SEV_LOGIN_ATTEMPT;
 				}elsif("$parts[5] $parts[6]" eq "Received  disconnect"){
 					$desc = "disconnect-no-user";
-					$desc_sev = 0;
+					$desc_sev = SEV_DISCONNECT;
 				}elsif("$parts[5] $parts[6]" eq "banner exchange:"){
 					$desc = "banner-exchange";
-					$desc_sev = 1;
+					$desc_sev = SEV_PROTO_MISMATCH;
 				}else{
 					$desc = "unknown ($parts[5] $parts[6])";
-					$desc_sev = 8;
+					$desc_sev = SEV_UNKNOWN;
 				}
 
 				add_fail("ssh", $ip, $host, $user, $timestamp, $desc, $desc_sev);
@@ -241,12 +251,12 @@ sub parse_http {
 			$ua =~ s/^"|" *$//g;
 
 			my $desc = "ua:$ua";
-			my $desc_sev = 1;
+			my $desc_sev = SEV_UNKNOWN;
 
 			my $path = $parts[6];
 			if($path =~ /^\/(sibble|favicon|^\/apple-touch-icon.*\.png$)/){
 				$desc = "{public} $desc";
-				$desc_sev = 0;
+				$desc_sev = SEV_SAFE;
 			}
 
 			# [31/Mar/2023:06:58:45 +0100]
