@@ -12,6 +12,9 @@ use constant {
 	SEV_UNKNOWN => 3,
 	SEV_DISCONNECT_POSTAUTH => 4,
 	SEV_LOGIN_ATTEMPT => 5,
+
+	# anything >=4 is major
+	SEV_major => 4,
 };
 
 my $today = Time::Piece->new;
@@ -55,6 +58,7 @@ my %colours = (
 my %extras = (
 	duration => "magenta",
 	severity => "green",
+	severity_major => "red",
 	ip => "blue",
 	types => "yellow",
 	warn => "red",
@@ -414,6 +418,7 @@ for my $ip (keys %ip_records) {
 		latest => $latest,
 		latest_desc => $latest_desc,
 		severest_desc => $severest_desc,
+		severity => $severest_desc_val,
 	};
 }
 
@@ -476,7 +481,8 @@ for my $rec (@sorted) {
 	my $severest_desc = $rec->{severest_desc};
 
 	if($severest_desc){
-		$extra .= " $colours{severity}($severest_desc)$colours{off}";
+		my $sev_col = $rec->{severity} >= SEV_major ? $colours{severity_major} : $colours{severity};
+		$extra .= " $sev_col($severest_desc)$colours{off}";
 	}
 	my $ip_col;
 	if(is_banned($ip)){
