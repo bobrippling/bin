@@ -44,7 +44,7 @@ my %colours = (
 
 my %extras = (
 	duration => "magenta",
-	severest => "green",
+	severity => "green",
 	ip => "blue",
 	types => "yellow",
 	warn => "red",
@@ -342,7 +342,7 @@ if($filter_cidr){
 			print "\t$when: $colours{types}$fail->{type}$colours{off} "
 			. "failure from $fail->{host}, "
 			. "user $fail->{user} "
-			. "($colours{severest}$fail->{desc}$colours{off})\n";
+			. "($colours{severity}$fail->{desc}$colours{off})\n";
 		}
 	}
 
@@ -463,7 +463,7 @@ for my $rec (@sorted) {
 	my $severest_desc = $rec->{severest_desc};
 
 	if($severest_desc){
-		$extra .= " $colours{severest}($severest_desc)$colours{off}";
+		$extra .= " $colours{severity}($severest_desc)$colours{off}";
 	}
 	my $ip_col;
 	if(is_banned($ip)){
