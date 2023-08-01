@@ -1,0 +1,12 @@
+#!/bin/sh
+
+usage(){
+	echo >&2 "Usage: $0 status"
+	exit 2
+}
+
+if test $# -ne 1 || test "$1" != status
+then usage
+fi
+
+system_profiler SPBluetoothDataType
