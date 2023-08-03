@@ -1,0 +1,47 @@
+#/bin/sh
+
+set -e
+
+usage(){
+	echo >&2 "Usage: $0 [--count] [--user <user>]"
+	exit 2
+}
+
+count_only=0
+w=
+while test $# -gt 0
+do
+	case "$1" in
+		--count)
+			count_only=1
+			;;
+		--user)
+			shift
+			if test $# -eq 0
+			then usage
+			fi
+			w="$1"
+			;;
+		*)
+			usage
+			;;
+	esac
+	shift
+done
+
+if test -z "$w"
+then
+	if test "$(id -u)" -eq 0
+	then w=mail
+	else w=$(id -un)
+	fi
+fi
+
+n=$(grep --count '^Delivery-date:' /var/mail/"$w")
+if test $count_only -eq 1
+then
+	echo "$n"
+elif test $n -gt 0
+then
+	echo "you got mail ($n)"
+fi
