@@ -1,0 +1,10 @@
+#!/bin/sh
+
+if test $# -ne 1
+then
+	echo >&2 "Usage: $0 version"
+	exit 2
+fi
+
+ver=$(tmux -V | grep -Eo "[0-9.]+")
+test "$(echo "$ver >= $1" | bc)" -eq 1
