@@ -352,8 +352,21 @@ if($filter_cidr){
 		my @sorted = sort {
 			$a->{timestamp} <=> $b->{timestamp}
 		} @{$rec->{fails}};
+		my $http_unauths = 0;
 
 		for my $fail (@sorted){
+			if($fail->{type} eq "http"){
+				if($rec->{authed}){
+					$http_unauths++;
+					if($http_unauths == 1){
+						# show first one
+					}else{
+						print "\t(multiple http challenges)\n" if $http_unauths == 2;
+						next;
+					}
+				}
+			}
+
 			my $when = timestamp_to_approx($fail->{timestamp});
 			my $host = $fail->{host} || "<nohost>";
 			my $user = $fail->{user} || "<none>";
