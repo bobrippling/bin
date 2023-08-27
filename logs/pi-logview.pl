@@ -269,7 +269,7 @@ sub parse_http {
 			# [31/Mar/2023:06:58:45 +0100]
 			my $timestamp = parse_time("[%d/%b/%Y:%H:%M:%S %z]", "$parts[3] $parts[4]");
 
-			add_fail("http", $ip, "", "", $timestamp, $desc, $desc_sev);
+			add_fail("http", $ip, undef, undef, $timestamp, $desc, $desc_sev);
 		} else {
 			add_auth($ip, "http");
 		}
@@ -355,10 +355,12 @@ if($filter_cidr){
 
 		for my $fail (@sorted){
 			my $when = timestamp_to_approx($fail->{timestamp});
+			my $host = $fail->{host} || "<nohost>";
+			my $user = $fail->{user} || "<none>";
 
 			print "\t$when: $colours{types}$fail->{type}$colours{off} "
-			. "failure from $fail->{host}, "
-			. "user $fail->{user} "
+			. "failure from $host, "
+			. "user $user "
 			. "($colours{severity}$fail->{desc}$colours{off})\n";
 		}
 	}
