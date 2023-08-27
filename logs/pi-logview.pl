@@ -216,7 +216,7 @@ sub parse_ssh {
 					}
 					$desc = "pam:$pam{tty},$pam{user}";
 					$desc_sev = SEV_LOGIN_ATTEMPT;
-				}elsif("$parts[5] $parts[6]" eq "Received  disconnect"){
+				}elsif("$parts[5] $parts[6]" eq "Received disconnect"){
 					$desc = "disconnect-no-user";
 					$desc_sev = SEV_DISCONNECT;
 				}elsif("$parts[5] $parts[6]" eq "banner exchange:"){
