@@ -1,0 +1,14 @@
+#!/bin/sh
+
+usage(){
+	echo >&2 "Usage: $0 pid"
+	exit 2
+}
+
+if test $# -ne 1 || echo "$1" | grep '^-' >/dev/null
+then usage
+fi
+
+while kill -0 "$1"
+do sleep 5
+done
