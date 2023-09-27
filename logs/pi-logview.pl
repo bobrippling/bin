@@ -509,4 +509,21 @@ for my $rec (@sorted) {
 
 	my $types_col = "$colours{types}$types_desc$colours{off}";
 	print "$n fail$s for $ip_col ($types_col), latest $latest_str$extra\n";
+
+	if($verbose){
+		my $cmd = join(
+			' ',
+			'zgrep',
+			'-F',
+			$ip,
+			'/var/log/nginx/access.log',
+			'/var/log/nginx/access.log.1',
+			glob('/var/log/nginx/access.log.[0-9].gz'),
+			'/var/log/auth.log',
+			'/var/log/auth.log.1',
+			glob('/var/log/auth.log.[0-9].gz'),
+		);
+
+		system("$cmd | sed 's/^/  /'");
+	}
 }
