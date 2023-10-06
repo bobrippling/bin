@@ -396,6 +396,8 @@ if($filter_cidr){
 			. "user $user "
 			. "($colours{severity}$fail->{desc}$colours{off})\n";
 		}
+
+		show_verbose($ip);
 	}
 
 	exit if $found;
