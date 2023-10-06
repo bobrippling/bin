@@ -284,7 +284,7 @@ sub parse_banned {
 }
 
 sub ip_to_hex {
-	my $s = shift();
+	my $s = shift;
 
 	if(index($s, ":") >= 0){
 		warn "$0: skipping IPv6 address (\"$s\")\n" if $debug;
@@ -323,7 +323,7 @@ sub cidr_match {
 }
 
 sub is_banned {
-	my $ip = ip_to_hex(shift());
+	my $ip = ip_to_hex(shift);
 
 	for my $entry (@banned){
 		return 1 if cidr_match($entry, $ip);
@@ -438,7 +438,7 @@ for my $ip (keys %ip_records) {
 }
 
 sub timestamp_to_approx {
-	my $t = shift();
+	my $t = shift;
 	my $days_ago = int(($today - $t)->days);
 	my $r;
 	if($days_ago == 0){
