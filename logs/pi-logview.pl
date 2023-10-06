@@ -331,6 +331,26 @@ sub is_banned {
 	return 0;
 }
 
+sub show_verbose {
+	return unless $verbose;
+	my $ip = shift;
+
+	my $cmd = join(
+		' ',
+		'zgrep',
+		'-F',
+		$ip,
+		'/var/log/nginx/access.log',
+		'/var/log/nginx/access.log.1',
+		glob('/var/log/nginx/access.log.[0-9].gz'),
+		'/var/log/auth.log',
+		'/var/log/auth.log.1',
+		glob('/var/log/auth.log.[0-9].gz'),
+	);
+
+	system("$cmd | sed 's/^/\t/'");
+}
+
 parse_ssh();
 parse_http();
 parse_banned();
@@ -510,20 +530,5 @@ for my $rec (@sorted) {
 	my $types_col = "$colours{types}$types_desc$colours{off}";
 	print "$n fail$s for $ip_col ($types_col), latest $latest_str$extra\n";
 
-	if($verbose){
-		my $cmd = join(
-			' ',
-			'zgrep',
-			'-F',
-			$ip,
-			'/var/log/nginx/access.log',
-			'/var/log/nginx/access.log.1',
-			glob('/var/log/nginx/access.log.[0-9].gz'),
-			'/var/log/auth.log',
-			'/var/log/auth.log.1',
-			glob('/var/log/auth.log.[0-9].gz'),
-		);
-
-		system("$cmd | sed 's/^/  /'");
-	}
+	show_verbose($ip);
 }
