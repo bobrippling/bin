@@ -25,24 +25,37 @@ restore(){
 			;;
 	esac \
 		| sed 's/path=//' \
-		| awk '{print $2 " " $4}' \
+		| awk '{print $1 " " $2 " " $4}' \
 		| awk '!x[$1]++' \
-		| while read title wd
+		| while read path title wd
 		do
-			title=$(echo "$title" | tr _ ' ')
-			new_title=$title
-			if echo "$title" | grep '^>' >/dev/null
-			then new_title=
+			path=${path%.*}
+			args=(-c "$wd")
+			title_arg=()
+
+			if ! echo "$title" | grep '^>' >/dev/null
+			then
+				# not just a plain shell, assume explicit name
+				title="$(echo "$title" | tr _ ' ')"
+				if tmux lsw -F '#W' | grep -x "$title" >/dev/null
+				then
+					echo "already got $title" >&2
+					continue
+				else
+					title_arg=(-n "$title")
+				fi
 			fi
 
-			if ! tmux lsw -F '#W' | grep -x "$title" >/dev/null
+			if test -z "$windows"
+			then windows=$(tmux lsw -F '#{session_name}:#{window_index}')
+			fi
+
+			if echo "$windows" | grep -F "$path" >/dev/null
 			then
-				if test -z "$new_title"
-				then tmux new-window -c "$wd" -d
-				else tmux new-window -c "$wd" -d -n "$new_title"
-				fi
+				echo "window $path exists, splitting"
+				tmux split-window -d -t "$path" "${args[@]}"
 			else
-				echo "already got $title" >&2
+				tmux new-window -d -t "$path" "${title_arg[@]}" "${args[@]}"
 			fi
 		done
 }
