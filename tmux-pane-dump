@@ -88,9 +88,9 @@ dump(){
 		if test $proc -ne 0
 		then arg=-p
 		fi
-		"$0" $arg | strip_proc | diff -u "$t" -
 
-		exit 0
+		"$0" $arg | strip_proc | diff -u "$t" -
+		exit
 	fi
 
 	tmux lsp -aF "$fmt_pre$fmt_mid$fmt_post"
