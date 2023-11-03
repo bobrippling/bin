@@ -216,7 +216,7 @@ sub parse_ssh {
 					}
 					$desc = "pam:$pam{tty},$pam{user}";
 					$desc_sev = SEV_LOGIN_ATTEMPT;
-				}elsif("$parts[5] $parts[6]" eq "Received  disconnect"){
+				}elsif("$parts[5] $parts[6]" eq "Received disconnect"){
 					$desc = "disconnect-no-user";
 					$desc_sev = SEV_DISCONNECT;
 				}elsif("$parts[5] $parts[6]" eq "banner exchange:"){
@@ -269,7 +269,7 @@ sub parse_http {
 			# [31/Mar/2023:06:58:45 +0100]
 			my $timestamp = parse_time("[%d/%b/%Y:%H:%M:%S %z]", "$parts[3] $parts[4]");
 
-			add_fail("http", $ip, "", "", $timestamp, $desc, $desc_sev);
+			add_fail("http", $ip, undef, undef, $timestamp, $desc, $desc_sev);
 		} else {
 			add_auth($ip, "http");
 		}
@@ -284,7 +284,7 @@ sub parse_banned {
 }
 
 sub ip_to_hex {
-	my $s = shift();
+	my $s = shift;
 
 	if(index($s, ":") >= 0){
 		warn "$0: skipping IPv6 address (\"$s\")\n" if $debug;
@@ -323,12 +323,32 @@ sub cidr_match {
 }
 
 sub is_banned {
-	my $ip = ip_to_hex(shift());
+	my $ip = ip_to_hex(shift);
 
 	for my $entry (@banned){
 		return 1 if cidr_match($entry, $ip);
 	}
 	return 0;
+}
+
+sub show_verbose {
+	return unless $verbose;
+	my $ip = shift;
+
+	my $cmd = join(
+		' ',
+		'zgrep',
+		'-F',
+		$ip,
+		'/var/log/nginx/access.log',
+		'/var/log/nginx/access.log.1',
+		glob('/var/log/nginx/access.log.[0-9].gz'),
+		'/var/log/auth.log',
+		'/var/log/auth.log.1',
+		glob('/var/log/auth.log.[0-9].gz'),
+	);
+
+	system("$cmd | sed 's/^/\t/'");
 }
 
 parse_ssh();
@@ -352,15 +372,32 @@ if($filter_cidr){
 		my @sorted = sort {
 			$a->{timestamp} <=> $b->{timestamp}
 		} @{$rec->{fails}};
+		my $http_unauths = 0;
 
 		for my $fail (@sorted){
+			if($fail->{type} eq "http"){
+				if($rec->{authed}){
+					$http_unauths++;
+					if($http_unauths == 1){
+						# show first one
+					}else{
+						print "\t(multiple http challenges)\n" if $http_unauths == 2;
+						next;
+					}
+				}
+			}
+
 			my $when = timestamp_to_approx($fail->{timestamp});
+			my $host = $fail->{host} || "<nohost>";
+			my $user = $fail->{user} || "<none>";
 
 			print "\t$when: $colours{types}$fail->{type}$colours{off} "
-			. "failure from $fail->{host}, "
-			. "user $fail->{user} "
+			. "failure from $host, "
+			. "user $user "
 			. "($colours{severity}$fail->{desc}$colours{off})\n";
 		}
+
+		show_verbose($ip);
 	}
 
 	exit if $found;
@@ -423,7 +460,7 @@ for my $ip (keys %ip_records) {
 }
 
 sub timestamp_to_approx {
-	my $t = shift();
+	my $t = shift;
 	my $days_ago = int(($today - $t)->days);
 	my $r;
 	if($days_ago == 0){
@@ -494,4 +531,6 @@ for my $rec (@sorted) {
 
 	my $types_col = "$colours{types}$types_desc$colours{off}";
 	print "$n fail$s for $ip_col ($types_col), latest $latest_str$extra\n";
+
+	show_verbose($ip);
 }
