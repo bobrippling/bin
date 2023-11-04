@@ -63,6 +63,7 @@ my %extras = (
 	types => "yellow",
 	warn => "red",
 	banned => "cyan",
+	fail2banned => "blue",
 );
 $colours{$_} = $colours{$extras{$_}} for keys %extras;
 if(!-t 1){
@@ -89,6 +90,7 @@ if($pam eq 'open_session') {
 
 my %ip_records;
 my @banned;
+my @fail2banned;
 
 sub parse_time {
 	my($fmt, $str) = @_;
@@ -281,6 +283,19 @@ sub parse_banned {
 		s/\s*#.*//;
 		push @banned, $_ if length;
 	}
+
+	if(open(my $fh, '-|', 'doas /usr/bin/fail2ban-client-su banned')){
+		chomp(my $json = join ",", <$fh>);
+		$json =~ s/][^[]*\[/,/g; # sep
+		$json =~ s/^\[[^[]*\[//; # start
+		$json =~ s/][^]]*\]$//; # end
+		$json =~ s/'//g;
+
+		my @ips = grep { length } split /,+/, $json;
+		push @fail2banned, @ips;
+	}else{
+		warn "$0: couldn't get fail2ban IPs";
+	}
 }
 
 sub ip_to_hex {
@@ -322,13 +337,24 @@ sub cidr_match {
 	return $addr_hex_shifted == $candidate_shifted;
 }
 
-sub is_banned {
-	my $ip = ip_to_hex(shift);
+sub banned_type {
+	my $ip = shift;
+	my $ip_hex = ip_to_hex($ip);
 
 	for my $entry (@banned){
-		return 1 if cidr_match($entry, $ip);
+		return 1 if cidr_match($entry, $ip_hex);
+	}
+	for my $entry (@fail2banned){
+		return 2 if $entry eq $ip;
 	}
 	return 0;
+}
+
+sub ban_desc {
+	my $t = banned_type(shift());
+	return ($colours{banned}, "banned") if $t == 1;
+	return ($colours{fail2banned}, "f2banned") if $t == 2;
+	return 0, "";
 }
 
 sub show_verbose {
@@ -363,8 +389,10 @@ if($filter_cidr){
 
 		my $rec = $ip_records{$ip};
 
+		my($ban_col, $ban_name) = ban_desc($ip);
+
 		print "$colours{ip}$ip$colours{off}"
-		. (is_banned($ip) ? " $colours{banned}(banned)$colours{off}" : "")
+		. ($ban_col ? " $ban_col($ban_name)$colours{off}" : "")
 		. ":\n";
 
 		print "\tauthed\n" if $rec->{authed};
@@ -521,10 +549,11 @@ for my $rec (@sorted) {
 		my $sev_col = $rec->{severity} >= SEV_major ? $colours{severity_major} : $colours{severity};
 		$extra .= " $sev_col($severest_desc)$colours{off}";
 	}
+	my($ban_col, $ban_name) = ban_desc($ip);
 	my $ip_col;
-	if(is_banned($ip)){
-		$ip_col = "$colours{banned}$ip$colours{off}";
-		$extra .= " $colours{banned}(banned)$colours{off}";
+	if($ban_col){
+		$ip_col = "$ban_col$ip$colours{off}";
+		$extra .= " $ban_col($ban_name)$colours{off}";
 	}else{
 		$ip_col = "$colours{ip}$ip$colours{off}";
 	}
