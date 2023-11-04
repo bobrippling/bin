@@ -43,6 +43,10 @@ for(my $i = 0; $i < @ARGV; $i++){
 	}
 }
 
+if($debug){
+	use Time::HiRes qw(gettimeofday);
+}
+
 my %colours = (
 	black => "\e[30m",
 	red => "\e[31m",
@@ -118,6 +122,19 @@ sub file_contents {
 	}
 
 	return @c;
+}
+
+sub debug_time {
+	my($name, $f) = @_;
+	if($debug == 0){
+		$f->();
+		return;
+	}
+	my $now = gettimeofday();
+	$f->();
+	my $fin = gettimeofday();
+	my $diff = sprintf("%.3f", $fin - $now);
+	print STDERR "$0: ${diff}ms for $name\n";
 }
 
 sub add_auth {
@@ -279,23 +296,30 @@ sub parse_http {
 }
 
 sub parse_banned {
-	for(file_contents("/etc/pi-bans")){
-		s/\s*#.*//;
-		push @banned, $_ if length;
+	sub parse_pi_bans {
+		for(file_contents("/etc/pi-bans")){
+			s/\s*#.*//;
+			push @banned, $_ if length;
+		}
 	}
 
-	if(open(my $fh, '-|', 'doas /usr/bin/fail2ban-client-su banned')){
-		chomp(my $json = join ",", <$fh>);
-		$json =~ s/][^[]*\[/,/g; # sep
-		$json =~ s/^\[[^[]*\[//; # start
-		$json =~ s/][^]]*\]$//; # end
-		$json =~ s/'//g;
+	sub parse_fail2bans {
+		if(open(my $fh, '-|', 'doas /usr/bin/fail2ban-client-su banned')){
+			chomp(my $json = join ",", <$fh>);
+			$json =~ s/][^[]*\[/,/g; # sep
+			$json =~ s/^\[[^[]*\[//; # start
+			$json =~ s/][^]]*\]$//; # end
+			$json =~ s/'//g;
 
-		my @ips = grep { length } split /,+/, $json;
-		push @fail2banned, @ips;
-	}else{
-		warn "$0: couldn't get fail2ban IPs";
+			my @ips = grep { length } split /,+/, $json;
+			push @fail2banned, @ips;
+		}else{
+			warn "$0: couldn't get fail2ban IPs";
+		}
 	}
+
+	debug_time("parse pi-bans", \&parse_pi_bans);
+	debug_time("parse fail2bans", \&parse_fail2bans);
 }
 
 sub ip_to_hex {
@@ -377,8 +401,8 @@ sub show_verbose {
 	system("$cmd | sed 's/^/\t/'");
 }
 
-parse_ssh();
-parse_http();
+debug_time("parse ssh", \&parse_ssh);
+debug_time("parse http", \&parse_http);
 parse_banned();
 
 if($filter_cidr){
