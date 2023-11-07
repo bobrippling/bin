@@ -304,7 +304,7 @@ sub parse_banned {
 	}
 
 	sub parse_fail2bans {
-		if(open(my $fh, '-|', 'doas /usr/bin/fail2ban-client-su banned')){
+		if(open(my $fh, '-|', '/usr/local/bin/doas /usr/bin/fail2ban-client-su banned')){
 			chomp(my $json = join ",", <$fh>);
 			$json =~ s/][^[]*\[/,/g; # sep
 			$json =~ s/^\[[^[]*\[//; # start
