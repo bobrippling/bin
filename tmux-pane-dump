@@ -27,22 +27,22 @@ restore(){
 		| sed 's/path=//' \
 		| awk '{print $1 " " $2 " " $4}' \
 		| awk '!x[$1]++' \
-		| while read path title wd
+		| while read path name wd
 		do
 			path=${path%.*}
 			args=(-c "$wd")
-			title_arg=()
+			name_arg=()
 
-			if ! echo "$title" | grep '^>' >/dev/null
+			if ! echo "$name" | grep '^>' >/dev/null
 			then
 				# not just a plain shell, assume explicit name
-				title="$(echo "$title" | tr _ ' ')"
-				if tmux lsw -F '#W' | grep -x "$title" >/dev/null
+				name="$(echo "$name" | tr _ ' ')"
+				if tmux lsw -F '#W' | grep -x "$name" >/dev/null
 				then
-					echo "already got $title" >&2
+					echo "already got $name" >&2
 					continue
 				else
-					title_arg=(-n "$title")
+					name_arg=(-n "$name")
 				fi
 			fi
 
@@ -55,7 +55,7 @@ restore(){
 				echo "window $path exists, splitting"
 				tmux split-window -d -t "$path" "${args[@]}"
 			else
-				tmux new-window -d -t "$path" "${title_arg[@]}" "${args[@]}"
+				tmux new-window -d -t "$path" "${name_arg[@]}" "${args[@]}"
 			fi
 		done
 }
