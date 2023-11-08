@@ -1,13 +1,19 @@
 #!/bin/sh
 
 usage(){
-	echo >&2 "Usage: $0 [-p] [-u file]"
+	echo >&2 "Usage: $0 [-n] [-p] [-u file]"
 	echo >&2 " -p: dump processes too"
 	echo >&2 " -u: show update compared to file"
 	echo >&2
 	echo >&2 "Usage: $0 restore <file>"
 	exit 2
 }
+
+if test "$1" = -n
+then
+	shift
+	echo='echo % '
+fi
 
 window_name(){
 	# $1 = path
@@ -72,13 +78,13 @@ restore(){
 			if echo "$windows" | grep -F "$path" >/dev/null
 			then
 				echo "window $path exists, splitting"
-				tmux split-window -d -t "$path" "${args[@]}"
+				$echo tmux split-window -d -t "$path" "${args[@]}"
 				if test -n "$name_arg" && window_is_auto_named "$path"
 				then
-					tmux rename-window -t "$path" "$name"
+					$echo tmux rename-window -t "$path" "$name"
 				fi
 			else
-				tmux new-window -d -t "$path" "${name_arg[@]}" "${args[@]}"
+				$echo tmux new-window -d -t "$path" "${name_arg[@]}" "${args[@]}"
 			fi
 		done
 }
