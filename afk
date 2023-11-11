@@ -8,7 +8,7 @@ usage(){
 clear_agents(){
 	echo "$0: clearing gpg-agent" >&2
 	#echo "reloadagent" | gpg-connect-agent --no-autostart >/dev/null
-	pkill -HUP gpg-agent
+	pkill -u "$USER" -HUP gpg-agent
 
 	echo "$0: clearing ssh-agent" >&2
 	ssh-add -Dq
