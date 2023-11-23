@@ -35,6 +35,8 @@ window_is_auto_named(){
 
 restore(){
 	windows=
+	sessions=
+
 	case "$#" in
 		0)
 			cat
@@ -85,7 +87,17 @@ restore(){
 					$echo tmux rename-window -t "$path" "$name"
 				fi
 			else
-				$echo tmux new-window -d -t "$path" "${name_arg[@]}" "${args[@]}"
+				if test -z "$sessions"
+				then sessions=$(tmux ls -F '#{session_name}')
+				fi
+
+				if ! echo "$sessions" | grep -Fx "${path%%:*}" >/dev/null
+				then
+					# can't give target (`-t "$path"`)
+					$echo tmux new-session -d "${name_arg[@]}" "${args[@]}" -s "${path%%:*}"
+				else
+					$echo tmux new-window -d -t "$path" "${name_arg[@]}" "${args[@]}"
+				fi
 			fi
 		done
 }
