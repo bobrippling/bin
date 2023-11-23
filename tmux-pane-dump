@@ -78,7 +78,7 @@ restore(){
 			fi
 
 			echo "creating pane for $path / $name / $wd"
-			if echo "$windows" | grep -F "$path" >/dev/null
+			if echo "$windows" | grep -Fx "$path" >/dev/null
 			then
 				echo "window $path exists, splitting"
 				$echo tmux split-window -d -t "$path" "${args[@]}"
