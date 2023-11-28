@@ -315,7 +315,7 @@ sub parse_banned {
 			$json =~ s/'//g;
 
 			my @ips = grep { length } split /,+/, $json;
-			push @fail2banned, @ips;
+			push @fail2banned, map { s/^ *//; s/ *$//; $_ } @ips;
 		}else{
 			warn "$0: couldn't get fail2ban IPs";
 		}
