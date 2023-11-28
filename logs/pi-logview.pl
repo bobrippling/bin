@@ -18,6 +18,7 @@ use constant {
 };
 
 my $today = Time::Piece->new;
+my $cachepath = "$ENV{HOME}/.pi-logview.cache";
 
 sub usage {
 	print STDERR "Usage: $0 [-v] [-d] [--cidr=<cidr>]\n";
@@ -298,6 +299,37 @@ sub parse_http {
 	}
 }
 
+sub parse_fail2bans_slow {
+	if(open(my $fh, '-|', '/usr/local/bin/doas /usr/bin/fail2ban-client-su banned')){
+		chomp(my $json = join ",", <$fh>);
+		$json =~ s/][^[]*\[/,/g; # sep
+		$json =~ s/^\[[^[]*\[//; # start
+		$json =~ s/][^]]*\]$//; # end
+		$json =~ s/'//g;
+
+		my @ips = grep { length } split /,+/, $json;
+		push @fail2banned, map { s/^ *//; s/ *$//; $_ } @ips;
+	}else{
+		@fail2banned = ();
+		warn "$0: couldn't get fail2ban IPs";
+	}
+	cache_fail2bans();
+}
+
+sub cache_fail2bans {
+	if(open(my $fh, '>', $cachepath)){
+		my $now = gettimeofday();
+		print $fh "$now\n";
+		print $fh join("\n", @fail2banned);
+		print $fh "\n";
+		close $fh;
+
+		warn "$0: wrote \"$cachepath\"\n" if $debug;
+	}else{
+		warn "$0: open \"$cachepath\": $!";
+	}
+}
+
 sub parse_banned {
 	sub parse_pi_bans {
 		for(file_contents("/etc/pi-bans")){
@@ -307,17 +339,31 @@ sub parse_banned {
 	}
 
 	sub parse_fail2bans {
-		if(open(my $fh, '-|', '/usr/local/bin/doas /usr/bin/fail2ban-client-su banned')){
-			chomp(my $json = join ",", <$fh>);
-			$json =~ s/][^[]*\[/,/g; # sep
-			$json =~ s/^\[[^[]*\[//; # start
-			$json =~ s/][^]]*\]$//; # end
-			$json =~ s/'//g;
+		if(open(my $fh, '<', $cachepath)){
+			die "parse_fail2bans: need ip records" unless keys(%ip_records) > 0;
 
-			my @ips = grep { length } split /,+/, $json;
-			push @fail2banned, map { s/^ *//; s/ *$//; $_ } @ips;
+			my $latest_ts = undef;
+
+			for my $ip (keys %ip_records){
+				for my $fail (@{$ip_records{$ip}->{fails}}){
+					my $ts = $fail->{timestamp};
+					$latest_ts = $ts if !defined($latest_ts) || $ts > $latest_ts;
+				}
+			}
+
+			chomp(my $timestamp = <$fh>);
+
+			if($latest_ts > $timestamp){
+				warn "$0: \"$cachepath\" expired, reloading\n" if $debug;
+				parse_fail2bans_slow();
+			}else{
+				warn "$0: \"$cachepath\" still relevant, using\n" if $debug;
+				@fail2banned = map { chomp; $_ } <$fh>;
+			}
+			close $fh;
 		}else{
-			warn "$0: couldn't get fail2ban IPs";
+			warn "$0: no \"$cachepath\"\n" if $debug;
+			parse_fail2bans_slow();
 		}
 	}
 
