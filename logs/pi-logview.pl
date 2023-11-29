@@ -18,7 +18,8 @@ use constant {
 };
 
 my $today = Time::Piece->new;
-my $cachepath = "$ENV{HOME}/.pi-logview.cache";
+my $HOME = $ENV{HOME};
+my $cachepath = $HOME ? "$HOME/.pi-logview.cache" : "/var/lib/pi-logview.cache";
 
 sub usage {
 	print STDERR "Usage: $0 [-v] [-d] [--cidr=<cidr>]\n";
