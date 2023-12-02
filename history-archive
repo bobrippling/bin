@@ -4,6 +4,8 @@ set -e
 
 usage(){
 	echo >&2 "Usage: $0 [history-file]"
+	echo >&2
+	echo >&2 "\$HISTORY_ARCHIVE_DEBUG=1 for debugging"
 	exit 2
 }
 
@@ -12,16 +14,38 @@ err_exit(){
 	exit 1
 }
 
+debug(){
+	if test "$HISTORY_ARCHIVE_DEBUG" = 1
+	then echo >&2 "$0: $*"
+	fi
+}
+
 case $# in
 	1)
 		h="$1"
 		;;
 	0)
-		if test -n "$BASH"
-		then h=~/.bash_history
+		assume=0
+
+		if test -n "$HISTFILE"
+		then
+			h="$HISTFILE"
+		elif test -n "$BASH"
+		then
+			h=~/.bash_history
+			assume=1
 		elif test -n "$ZSH_VERSION"
-		then h=~/.zsh_history
-		else err_exit "$0: unknown shell"
+		then
+			h=~/.zsh_history
+			assume=1
+		else
+			err_exit "$0: unknown shell and no (exported) \$HISTFILE"
+		fi
+
+		if test $assume -eq 1
+		then
+			debug "exiting early - \$HISTFILE not set, would've used \"$h\""
+			exit 0
 		fi
 		;;
 	*)
@@ -39,14 +63,16 @@ bname="$(basename "$0")"
 
 n=$(wc -l "$h" | cut -d' ' -f1)
 if test $n -le 7000
-then exit 0
+then
+	debug "too few lines ($n) to archive in \"$h\""
+	exit 0
 fi
 
 echo >&2 "$bname: $n lines in $h, archiving..."
 archive_count=$(($n - 5000))
 
-#echo "archiving the first $archive_count lines from $h"
-#echo "trimming $h to the last 5000 lines"
+debug "archiving the first $archive_count lines from $h"
+debug "trimming $h to the last 5000 lines"
 
 head -"$archive_count" "$h" >> "$h.archive"
 tail -5000 "$h" | sponge "$h"
