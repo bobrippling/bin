@@ -66,7 +66,7 @@ restore(){
 				name="$(echo "$name" | tr _ ' ')"
 				if tmux lsw -F '#W' | grep -x "$name" >/dev/null
 				then
-					echo "already got $name, skipping" >&2
+					echo "[!] already got $name, skipping" >&2
 					continue
 				else
 					name_arg=(-n "$name")
@@ -77,10 +77,10 @@ restore(){
 			then windows=$(tmux lsw -F '#{session_name}:#{window_index}')
 			fi
 
-			echo "creating pane @ $path called \"$name\" in \`$wd\`"
+			echo "[*] creating pane @ $path called \"$name\" in \`$wd\`"
 			if echo "$windows" | grep -Fx "$path" >/dev/null
 			then
-				echo "window $path exists, splitting"
+				echo "[*] window $path exists, splitting"
 				$echo tmux split-window -d -t "$path" "${args[@]}"
 				if test -n "$name_arg" && window_is_auto_named "$path"
 				then
