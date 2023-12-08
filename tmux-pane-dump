@@ -56,9 +56,11 @@ restore(){
 		| awk '!x[$1]++' \
 		| while read path name wd
 		do
+			orig_path=$path
 			path=${path%.*}
 			args=(-c "$wd")
 			name_arg=()
+			split=false
 
 			if ! echo "$name" | grep '^>' >/dev/null
 			then
@@ -66,8 +68,15 @@ restore(){
 				name="$(echo "$name" | tr _ ' ')"
 				if tmux lsw -F '#W' | grep -x "$name" >/dev/null
 				then
-					echo "[!] already got $name, skipping" >&2
-					continue
+					pane=$(echo "$orig_path" | cut -d. -f2-)
+					if test "$pane" -gt 0
+					then
+						echo "[*] already got $name, but creating a new pane ($orig_path)"
+						split=true
+					else
+						echo "[!] already got $name, skipping" >&2
+						continue
+					fi
 				else
 					name_arg=(-n "$name")
 				fi
@@ -78,9 +87,11 @@ restore(){
 			fi
 
 			echo "[*] creating pane @ $path called \"$name\" in \`$wd\`"
-			if echo "$windows" | grep -Fx "$path" >/dev/null
+			if $split || echo "$windows" | grep -Fx "$path" >/dev/null
 			then
-				echo "[*] window $path exists, splitting"
+				if ! $split
+				then echo "[*] window $path exists, splitting"
+				fi
 				$echo tmux split-window -d -t "$path" "${args[@]}"
 				if test -n "$name_arg" && window_is_auto_named "$path"
 				then
