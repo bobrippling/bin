@@ -181,6 +181,9 @@ sub parse_ssh {
 			# 0   1  2        3      4          5
 
 			my $timestamp = parse_time("%b %d %H:%M:%S %Y", "$parts[0] $parts[1] $parts[2] " . $today->year);
+			if($timestamp > $today){
+				$timestamp = $timestamp->add_years(-1);
+			}
 
 			if($parts[5] eq "Accepted"){
 				my $ip = $parts[10];
@@ -564,6 +567,7 @@ for my $ip (keys %ip_records) {
 sub timestamp_to_approx {
 	my $t = shift;
 	my $days_ago = int(($today - $t)->days);
+	$days_ago += 365 if $days_ago < 0;
 	my $r;
 	if($days_ago == 0){
 		$r = "$colours{warn}within-24-hrs$colours{off}";
