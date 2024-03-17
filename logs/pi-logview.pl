@@ -252,6 +252,8 @@ sub parse_ssh {
 				}elsif("$parts[5] $parts[6] $parts[7] $parts[8]" eq "Unable to negotiate with"){
 					$desc = "negotiation-fail";
 					$desc_sev = SEV_PROTO_MISMATCH;
+				}elsif("$parts[5] $parts[6]" eq "Server listening"){
+					next;
 				}else{
 					$desc = "unknown ($parts[5] $parts[6])";
 					$desc_sev = SEV_UNKNOWN;
