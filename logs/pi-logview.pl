@@ -127,13 +127,13 @@ sub file_contents {
 }
 
 sub debug_time {
-	my($name, $f) = @_;
+	my($name, $f, @args) = @_;
 	if($debug == 0){
-		$f->();
+		$f->(@args);
 		return;
 	}
 	my $now = gettimeofday();
-	$f->();
+	$f->(@args);
 	my $fin = gettimeofday();
 	my $diff = sprintf("%.3f", $fin - $now);
 	print STDERR "$0: ${diff}ms for $name\n";
