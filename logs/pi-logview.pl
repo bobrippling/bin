@@ -264,12 +264,53 @@ sub parse_ssh {
 		}
 }
 
+sub nginx_log_paths {
+	my $all = shift;
+
+	my %paths;
+
+	if(-e '/var/log/nginx/access.log'){
+		%paths = (
+			'/var/log/nginx/access.log' => 1,
+			'/var/log/nginx/access.log.1' => 1,
+			'/var/log/nginx/access.log.2.gz' => 1,
+		);
+
+		if($all){
+			$paths{$_} = 1 for glob '/var/log/nginx/access.log.[0-9]*.gz';
+		}
+	}
+
+	for my $d (glob('/var/log/nginx/*/')){
+		my $dh;
+		if(!opendir($dh, $d)){
+			warn "$0: open $d: $!\n";
+			continue;
+		}
+		my @ents = map { "$d/$_" } grep /^access\.log/, readdir($dh);
+		closedir($dh);
+
+		if($all){
+			$paths{$_} = 1 for @ents;
+		}else{
+			for(@ents){
+				$paths{$_} = 1 if /\.log(\.(1|2\.gz))?$/;
+			}
+		}
+	}
+
+	return keys %paths;
+}
+
 sub parse_http {
-	my @contents = file_contents(
-		'/var/log/nginx/access.log',
-		'/var/log/nginx/access.log.1',
-		'/var/log/nginx/access.log.2.gz'
-	);
+	for my $fname (nginx_log_paths(0)) {
+		debug_time("parse http, $fname", \&parse_http_1, $fname);
+	}
+}
+
+sub parse_http_1 {
+	my $fname = shift;
+	my @contents = file_contents($fname);
 
 	for my $line (@contents){
 		my @parts = split /\s+/, $line;
@@ -445,9 +486,7 @@ sub show_verbose {
 		'zgrep',
 		'-F',
 		$ip,
-		'/var/log/nginx/access.log',
-		'/var/log/nginx/access.log.1',
-		glob('/var/log/nginx/access.log.[0-9].gz'),
+		nginx_log_paths(1),
 		'/var/log/auth.log',
 		'/var/log/auth.log.1',
 		glob('/var/log/auth.log.[0-9].gz'),
