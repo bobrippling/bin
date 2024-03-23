@@ -77,9 +77,6 @@ if(!-t 1){
 	unless(($ENV{PAM_TYPE} || "") eq "open_session"){
 		$colours{$_} = "" for keys %colours;
 	}
-	if($ENV{PAM_TYPE}){
-		print "$0, parsing...\n";
-	}
 }
 
 # PAM_SERVICE=sshd
