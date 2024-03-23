@@ -97,6 +97,7 @@ if($pam eq 'open_session') {
 my %ip_records;
 my @banned;
 my @fail2banned;
+my %cfg;
 
 sub parse_time {
 	my($fmt, $str) = @_;
@@ -331,7 +332,7 @@ sub parse_http_1 {
 			my $desc_sev = SEV_UNKNOWN;
 
 			my $path = $parts[6];
-			if($path =~ /^\/(sibble|favicon|^\/apple-touch-icon.*\.png$)/){
+			if($path =~ /$cfg{public}/){
 				$desc = "{public} $desc";
 				$desc_sev = SEV_SAFE;
 			}
@@ -494,6 +495,34 @@ sub show_verbose {
 
 	system("$cmd | sed 's/^/\t/'");
 }
+
+sub read_cfg {
+	my $f = ($HOME ? "$ENV{HOME}/.config" : "/etc") . "/pi-logview.cfg";
+	my %cfg;
+
+	my $fh;
+	if(!open($fh, '<', $f)){
+		warn "$0: open $f: $!\n";
+		return;
+	}
+	while(<$fh>){
+		s/#.*//;
+		s/\s+$//;
+
+		next unless length;
+
+		if(/^public:\s*(.*)/){
+			$cfg{public} = $1;
+		}else{
+			die "$ARGV:$.: unknown config line\n";
+		}
+	}
+	close($fh);
+
+	return %cfg;
+}
+
+debug_time("parse cfg", sub { %cfg = read_cfg() });
 
 debug_time("parse ssh", \&parse_ssh);
 debug_time("parse http", \&parse_http);
