@@ -511,7 +511,10 @@ sub show_verbose {
 }
 
 sub read_cfg {
-	my $f = ($HOME ? "$ENV{HOME}/.config" : "/etc") . "/pi-logview.cfg";
+	my $f = $HOME ? "$ENV{HOME}/.config/pi-logview.cfg" : "";
+	if(!$f || !-e "$f"){
+		$f = "/etc/pi-logview.cfg";
+	}
 	my %cfg;
 
 	my $fh;
