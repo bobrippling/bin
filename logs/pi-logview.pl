@@ -127,6 +127,12 @@ sub file_contents {
 	return @c;
 }
 
+sub dirname {
+	my $d = shift();
+	return $1 if $d =~ m;/([^/]+)/?$;;
+	return $d;
+}
+
 sub debug_time {
 	my($name, $f, @args) = @_;
 	if($debug == 0){
@@ -266,7 +272,8 @@ sub parse_ssh {
 }
 
 sub nginx_log_paths {
-	my $all = shift;
+	my($all) = @_;
+	my $silence_skip = $all;
 
 	my %paths;
 
@@ -282,7 +289,14 @@ sub nginx_log_paths {
 		}
 	}
 
+	outer:
 	for my $d (glob('/var/log/nginx/*/')){
+		my $dir = dirname($d);
+		if(exists $cfg{skip_paths}->{$dir}){
+			warn "$0: skipping $d\n" if $debug && !$silence_skip;
+			next outer
+		}
+
 		my $dh;
 		if(!opendir($dh, $d)){
 			warn "$0: open $d: $!\n";
@@ -513,6 +527,10 @@ sub read_cfg {
 
 		if(/^public:\s*(.*)/){
 			$cfg{public} = $1;
+		}elsif(/^skip_paths:\s*(.*)/){
+			for my $d (split / /, $1){
+				$cfg{skip_paths}->{$d} = 1;
+			}
 		}else{
 			die "$ARGV:$.: unknown config line\n";
 		}
