@@ -19,7 +19,6 @@ use constant {
 
 my $today = Time::Piece->new;
 my $HOME = $ENV{HOME};
-my $cachepath = $HOME ? "$HOME/.pi-logview.cache" : "/var/lib/pi-logview.cache";
 
 sub usage {
 	print STDERR "Usage: $0 [-v] [-d] [--cidr=<cidr>]\n";
@@ -98,6 +97,55 @@ my %ip_records;
 my @banned;
 my @fail2banned;
 my %cfg;
+my $cachepath;
+
+# XDG_CONFIG_HOME (default ~/.config)
+# XDG_STATE_HOME (default ~/.local/state)
+# XDG_CACHE_HOME (default ~/.cache)
+sub path_cache {
+	my $name = shift();
+
+	my $f = $ENV{XDG_CACHE_HOME}
+		? "$ENV{XDG_CACHE_HOME}/$name"
+		: $HOME
+		? "$HOME/.$name"
+		: "/var/lib/$name";
+
+	warn "$0: cache @ \"$f\"\n" if $debug;
+	return $f;
+}
+
+sub path_config {
+	my $name = shift();
+	my @paths;
+
+	# we're reading, so look for one that exists first
+	push @paths, "$ENV{XDG_CONFIG_HOME}/$name" if $ENV{XDG_CONFIG_HOME};
+	push @paths, "$HOME/.$name" if $HOME;
+	push @paths, "/etc/$name";
+
+	for(@paths){
+		if(-e $_){
+			warn "$0: found config @ \"$_\"\n" if $debug;
+			return $_
+		}
+	}
+
+	my $r;
+	if($ENV{XDG_CONFIG_HOME}){
+		if(!mkdir $ENV{XDG_CONFIG_HOME} && $! !~ /exists/i){
+			die "mkdir $ENV{XDG_CONFIG_HOME}: $!";
+		}
+		$r = "$ENV{XDG_CONFIG_HOME}/$name";
+	}elsif($HOME){
+		$r = "$HOME/.$name";
+	}else{
+		$r = "/etc/$name";
+	}
+
+	warn "$0: no config, creating @ \"$r\"\n" if $debug;
+	return $r;
+}
 
 sub parse_time {
 	my($fmt, $str) = @_;
@@ -511,10 +559,7 @@ sub show_verbose {
 }
 
 sub read_cfg {
-	my $f = $HOME ? "$ENV{HOME}/.config/pi-logview.cfg" : "";
-	if(!$f || !-e "$f"){
-		$f = "/etc/pi-logview.cfg";
-	}
+	my $f = path_config("pi-logview.cfg");
 	my %cfg;
 
 	my $fh;
@@ -542,6 +587,8 @@ sub read_cfg {
 
 	return %cfg;
 }
+
+$cachepath = path_cache("pi-logview.cache");
 
 debug_time("parse cfg", sub { %cfg = read_cfg() });
 
