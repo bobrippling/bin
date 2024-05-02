@@ -220,10 +220,11 @@ sub parse_ssh {
 		glob('/var/log/auth.log.[2345].gz'),
 	);
 	my $found = 0;
+	my $off = 4;
 
 	for my $line (@contents){
 		my @parts = split /\s+/, $line;
-		next unless $parts[4] =~ '^sshd';
+		next unless $parts[$off] =~ '^sshd';
 		$found = 1;
 
 		# Oct 20 10:10:10 <host> sshd[pid]: Accepted publickey for <user> from <ip> port <port> <proto>: <key-type> SHA256:<key>
@@ -242,20 +243,20 @@ sub parse_ssh {
 			$timestamp = $timestamp->add_years(-1);
 		}
 
-		if($parts[5] eq "Accepted"){
-			my $ip = $parts[10];
+		if($parts[$off + 1] eq "Accepted"){
+			my $ip = $parts[$off + 6];
 			add_auth($ip, "ssh");
-		}elsif($parts[5] eq "Failed"){
+		}elsif($parts[$off + 1] eq "Failed"){
 			my $ip;
-			my $host = $parts[3];
+			my $host = $parts[$off + -1];
 			my $user;
 
-			if($parts[8] eq "invalid" && $parts[9] eq "user") {
-				$ip = $parts[12];
-				$user = $parts[10];
+			if($parts[$off + 4] eq "invalid" && $parts[$off + 5] eq "user") {
+				$ip = $parts[$off + 8];
+				$user = $parts[$off + 6];
 			} else {
-				$ip = $parts[10];
-				$user = $parts[8];
+				$ip = $parts[$off + 6];
+				$user = $parts[$off + 4];
 			}
 
 			my $desc = "invalid user/pw";
@@ -271,48 +272,48 @@ sub parse_ssh {
 			my $desc;
 			my $desc_sev;
 
-			if("$parts[5] $parts[6]" eq "Connection closed"){
+			if("$parts[$off + 1] $parts[$off + 2]" eq "Connection closed"){
 				$desc = "eof";
 				$desc_sev = SEV_DISCONNECT;
-			}elsif($parts[5] eq "Disconnected"){
-				my $user = $parts[8];
+			}elsif($parts[$off + 1] eq "Disconnected"){
+				my $user = $parts[$off + 4];
 				$desc = "disconnect:$user";
 				$desc_sev = SEV_DISCONNECT_POSTAUTH;
-			}elsif("$parts[5] $parts[6]" eq "Invalid user"){
-				my $user = $parts[7];
+			}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Invalid user"){
+				my $user = $parts[$off + 3];
 				$desc = "invalid:$user";
 				$desc_sev = SEV_LOGIN_ATTEMPT;
 			}elsif(
-				join(" ", @parts[5 .. 8]) eq "PAM 1 more authentication" ||
-				$parts[5] eq "pam_unix(sshd:auth):"
+				join(" ", @parts[$off + 1 .. $off + 4]) eq "PAM 1 more authentication" ||
+				$parts[$off + 1] eq "pam_unix(sshd:auth):"
 			){
 				my %pam = (
 					tty => "<unknown>",
 					user => "<unknown>",
 				);
-				for my $eq (@parts[8 .. $#parts]){
+				for my $eq (@parts[$off + 4 .. $#parts]){
 					if($eq =~ /(.*)=(.*)/){
 						$pam{$1} = $2;
 					}
 				}
 				$desc = "pam:$pam{tty},$pam{user}";
 				$desc_sev = SEV_LOGIN_ATTEMPT;
-			}elsif("$parts[5] $parts[6]" eq "Received disconnect"){
+			}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Received disconnect"){
 				$desc = "disconnect-no-user";
 				$desc_sev = SEV_DISCONNECT;
-			}elsif("$parts[5] $parts[6]" eq "banner exchange:"){
+			}elsif("$parts[$off + 1] $parts[$off + 2]" eq "banner exchange:"){
 				$desc = "banner-exchange";
 				$desc_sev = SEV_PROTO_MISMATCH;
-			}elsif("$parts[5] $parts[6]" eq "Connection reset"){
+			}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Connection reset"){
 				$desc = "conn-reset";
 				$desc_sev = SEV_DISCONNECT;
-			}elsif("$parts[5] $parts[6] $parts[7] $parts[8]" eq "Unable to negotiate with"){
+			}elsif("$parts[$off + 1] $parts[$off + 2] $parts[$off + 3] $parts[$off + 4]" eq "Unable to negotiate with"){
 				$desc = "negotiation-fail";
 				$desc_sev = SEV_PROTO_MISMATCH;
-			}elsif("$parts[5] $parts[6]" eq "Server listening"){
+			}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Server listening"){
 				next;
 			}else{
-				$desc = "unknown ($parts[5] $parts[6])";
+				$desc = "unknown ($parts[$off + 1] $parts[$off + 2])";
 				$desc_sev = SEV_UNKNOWN;
 			}
 
