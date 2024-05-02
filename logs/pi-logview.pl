@@ -220,13 +220,14 @@ sub parse_ssh {
 		glob('/var/log/auth.log.[2345].gz'),
 	);
 	my $found = 0;
-	my $off = 4;
+	my $off = 2;
 
 	for my $line (@contents){
 		my @parts = split /\s+/, $line;
 		next unless $parts[$off] =~ '^sshd';
 		$found = 1;
 
+		# old format:
 		# Oct 20 10:10:10 <host> sshd[pid]: Accepted publickey for <user> from <ip> port <port> <proto>: <key-type> SHA256:<key>
 		# 0   1  2        3      4          5        6         7   8      9    10   11   12     13       14         15
 		# Sep 11 10:10:10 <host> sshd[pid]: Failed password for <user> from <ip> port <port> <proto>
@@ -238,7 +239,11 @@ sub parse_ssh {
 		# May 24 02:01:52 <host> sshd[pid]: Bad protocol version identification '\003' from 141.98.9.13 port 64384
 		# 0   1  2        3      4          5
 
-		my $timestamp = parse_time("%b %d %H:%M:%S %Y", "$parts[0] $parts[1] $parts[2] " . $today->year);
+		# new format:
+		# 2024-04-28T09:00:00.000000+00:00 <host> sshd[pid]: Accepted publickey for <user> from <ip> port <port> <proto>: <key-type> SHA256:<key>
+
+		(my $when = $parts[0]) =~ s/\.\d+\+\S*//; # ditch ms & tz
+		my $timestamp = parse_time("%Y-%m-%dT%H:%M:%S", $when);
 		if($timestamp > $today){
 			$timestamp = $timestamp->add_years(-1);
 		}
