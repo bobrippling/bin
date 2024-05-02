@@ -219,10 +219,12 @@ sub parse_ssh {
 		'/var/log/auth.log.1',
 		glob('/var/log/auth.log.[2345].gz'),
 	);
+	my $found = 0;
 
 	for my $line (@contents){
 		my @parts = split /\s+/, $line;
 		next unless $parts[4] =~ '^sshd';
+		$found = 1;
 
 		# Oct 20 10:10:10 <host> sshd[pid]: Accepted publickey for <user> from <ip> port <port> <proto>: <key-type> SHA256:<key>
 		# 0   1  2        3      4          5        6         7   8      9    10   11   12     13       14         15
@@ -316,6 +318,10 @@ sub parse_ssh {
 
 			add_fail("ssh", $ip, $host, $user, $timestamp, $desc, $desc_sev);
 		}
+	}
+
+	if(!$found){
+		warn "$0: no sshd entries found in `auth.log`s!\n"
 	}
 }
 
