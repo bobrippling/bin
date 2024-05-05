@@ -559,7 +559,7 @@ sub show_verbose {
 	my $cmd = join(
 		' ',
 		'zgrep',
-		'-F',
+		'-Fw',
 		$ip,
 		nginx_log_paths(1),
 		'/var/log/auth.log',
