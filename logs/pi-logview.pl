@@ -235,6 +235,15 @@ sub parse_ssh {
 	}
 }
 
+sub parse_auth_timestamp {
+	(my $when = shift()) =~ s/\.\d+\+\S*//; # ditch ms & tz
+	my $timestamp = parse_time("%Y-%m-%dT%H:%M:%S", $when);
+	if($timestamp > $today){
+		$timestamp = $timestamp->add_years(-1);
+	}
+	return $timestamp;
+}
+
 sub parse_openssh {
 	# old format:
 	# Oct 20 10:10:10 <host> sshd[pid]: Accepted publickey for <user> from <ip> port <port> <proto>: <key-type> SHA256:<key>
@@ -251,12 +260,6 @@ sub parse_openssh {
 	# new format:
 	# 2024-04-28T09:00:00.000000+00:00 <host> sshd[pid]: Accepted publickey for <user> from <ip> port <port> <proto>: <key-type> SHA256:<key>
 	my ($off, $line, @parts) = @_;
-
-	(my $when = $parts[0]) =~ s/\.\d+\+\S*//; # ditch ms & tz
-	my $timestamp = parse_time("%Y-%m-%dT%H:%M:%S", $when);
-	if($timestamp > $today){
-		$timestamp = $timestamp->add_years(-1);
-	}
 
 	if($parts[$off + 1] eq "Accepted"){
 		my $ip = $parts[$off + 6];
@@ -277,6 +280,7 @@ sub parse_openssh {
 		my $desc = "invalid user/pw";
 		my $desc_sev = SEV_LOGIN_ATTEMPT;
 
+		my $timestamp = parse_auth_timestamp($parts[0]);
 		add_fail("ssh", $ip, $host, $user, $timestamp, $desc, $desc_sev);
 
 	}elsif($line =~ /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/){
@@ -332,6 +336,7 @@ sub parse_openssh {
 			$desc_sev = SEV_UNKNOWN;
 		}
 
+		my $timestamp = parse_auth_timestamp($parts[0]);
 		add_fail("ssh", $ip, $host, $user, $timestamp, $desc, $desc_sev);
 	}
 }
