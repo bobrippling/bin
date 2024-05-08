@@ -212,13 +212,21 @@ sub add_fail {
 	};
 }
 
-sub parse_ssh {
-	my @contents = file_contents(
-		#"eg.log"
+sub auth_log_paths {
+	my($all) = @_;
+	return (
 		'/var/log/auth.log',
 		'/var/log/auth.log.1',
-		glob('/var/log/auth.log.[2345].gz'),
+		glob(
+			$all
+			? '/var/log/auth.log.[0-9].gz'
+			: '/var/log/auth.log.[2345].gz'
+		),
 	);
+}
+
+sub parse_ssh {
+	my @contents = file_contents(auth_log_paths(0));
 	my $found_openssh = 0;
 	my $found_dropbear = 0;
 
@@ -657,9 +665,7 @@ sub show_verbose {
 		'-Fw',
 		$ip,
 		nginx_log_paths(1),
-		'/var/log/auth.log',
-		'/var/log/auth.log.1',
-		glob('/var/log/auth.log.[0-9].gz'),
+		auth_log_paths(1),
 	);
 
 	system("$cmd | sed 's/^/\t/'");
