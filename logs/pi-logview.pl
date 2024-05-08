@@ -220,19 +220,23 @@ sub parse_ssh {
 		glob('/var/log/auth.log.[2345].gz'),
 	);
 	my $found_openssh = 0;
+	my $found_dropbear = 0;
 
 	for my $line (@contents){
 		my @parts = split /\s+/, $line;
 		my $off = 2;
+
 		if($parts[$off] =~ '^sshd'){
 			$found_openssh = 1;
 			parse_openssh($off, $line, @parts);
+		}elsif($parts[$off] =~ /^dropbear/){
+			$found_dropbear = 1;
+			parse_dropbear($off, $line, @parts);
 		}
 	}
 
-	if(!$found_openssh){
-		warn "$0: no sshd entries found in `auth.log`s!\n"
-	}
+	warn "$0: no sshd entries found in `auth.log`s!\n" unless $found_openssh;
+	warn "$0: no dropbear entries found in `auth.log`s!\n" unless $found_dropbear;
 }
 
 sub parse_auth_timestamp {
@@ -242,6 +246,60 @@ sub parse_auth_timestamp {
 		$timestamp = $timestamp->add_years(-1);
 	}
 	return $timestamp;
+}
+
+sub parse_dropbear {
+	my ($off, $line, @parts) = @_;
+
+	my $user = undef;
+	if($off + 5 < $#parts){
+		($user = $parts[$off + 5]) =~ s/^'|'$//;
+	}
+
+	my $ip = undef;
+	my $port = undef;
+	if($parts[$#parts] =~ /(.*):(\d+)$/){
+		$ip = $1;
+		$port = $2;
+	}elsif($line =~ /<(\d[^>]*):(\d+)>/){
+		$ip = $1;
+		$port = $2;
+		if(!defined($user) && $line =~ /user '([^']+)'/){
+			$user = $1;
+		}
+	}
+
+	if("$parts[$off + 2] $parts[$off + 3]" eq "auth succeeded"){
+		my $type = $parts[$off + 1]; # Pubkey | Password
+		add_auth($ip, "dropbear ($type)");
+	}elsif($parts[$off + 1] eq "Bad"){
+		my $timestamp = parse_auth_timestamp($parts[0]);
+
+		my $desc = "invalid user/pw";
+		my $desc_sev = SEV_LOGIN_ATTEMPT;
+		add_fail("dropbear", $ip, undef, $user, $timestamp, $desc, $desc_sev);
+	}else{
+		my $msg = join(" ", @parts[$off + 1 ... $#parts]);
+		return if $msg =~ m;^Failed loading /etc/dropbear/dropbear_dss_host_key *$;;
+		return if $msg =~ /^Exit \(.*\) from <.*>: Disconnect received *$/;
+		return if $msg =~ /^Exit \(.*\) from <.*>: Exited normally *$/;
+		return if $msg =~ /^Early exit: /;
+		return if $msg =~ /^Failed listening on '/;
+		return if $msg =~ /^Running in background/;
+
+		if(!defined($ip)){
+			warn "$0: unknown line with no IP: \"$msg\"\n";
+			return;
+		}
+
+		# The main one we pick up here is "Child connection from ..."
+		# But also "Exit before auth from <ip:port>: (user '<user>', 1 fails): Exited normally"
+
+		my $timestamp = parse_auth_timestamp($parts[0]);
+		my $desc = "unknown ($msg)";
+		my $desc_sev = SEV_UNKNOWN;
+		add_fail("dropbear", $ip, undef, undef, $timestamp, $desc, $desc_sev);
+	}
 }
 
 sub parse_openssh {
