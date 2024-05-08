@@ -219,115 +219,120 @@ sub parse_ssh {
 		'/var/log/auth.log.1',
 		glob('/var/log/auth.log.[2345].gz'),
 	);
-	my $found = 0;
-	my $off = 2;
+	my $found_openssh = 0;
 
 	for my $line (@contents){
 		my @parts = split /\s+/, $line;
-		next unless $parts[$off] =~ '^sshd';
-		$found = 1;
-
-		# old format:
-		# Oct 20 10:10:10 <host> sshd[pid]: Accepted publickey for <user> from <ip> port <port> <proto>: <key-type> SHA256:<key>
-		# 0   1  2        3      4          5        6         7   8      9    10   11   12     13       14         15
-		# Sep 11 10:10:10 <host> sshd[pid]: Failed password for <user> from <ip> port <port> <proto>
-		# 0   1  2        3      4          5      6        7   8      9    10   11   12     13
-		# Dec 13 08:05:46 <host> sshd[pid]: Failed password for invalid user <user> from <ip> port <port> <proto>
-		# 0   1  2        3      4          5      6        7   8       9    10     11   12   13   14     15
-		# Dec 13 08:05:46 <host> sshd[pid]: (Bad|Did not|Invalid|Protocol|Unable)
-		# 0   1  2        3      4          5
-		# May 24 02:01:52 <host> sshd[pid]: Bad protocol version identification '\003' from 141.98.9.13 port 64384
-		# 0   1  2        3      4          5
-
-		# new format:
-		# 2024-04-28T09:00:00.000000+00:00 <host> sshd[pid]: Accepted publickey for <user> from <ip> port <port> <proto>: <key-type> SHA256:<key>
-
-		(my $when = $parts[0]) =~ s/\.\d+\+\S*//; # ditch ms & tz
-		my $timestamp = parse_time("%Y-%m-%dT%H:%M:%S", $when);
-		if($timestamp > $today){
-			$timestamp = $timestamp->add_years(-1);
-		}
-
-		if($parts[$off + 1] eq "Accepted"){
-			my $ip = $parts[$off + 6];
-			add_auth($ip, "ssh");
-		}elsif($parts[$off + 1] eq "Failed"){
-			my $ip;
-			my $host = $parts[$off + -1];
-			my $user;
-
-			if($parts[$off + 4] eq "invalid" && $parts[$off + 5] eq "user") {
-				$ip = $parts[$off + 8];
-				$user = $parts[$off + 6];
-			} else {
-				$ip = $parts[$off + 6];
-				$user = $parts[$off + 4];
-			}
-
-			my $desc = "invalid user/pw";
-			my $desc_sev = SEV_LOGIN_ATTEMPT;
-
-			add_fail("ssh", $ip, $host, $user, $timestamp, $desc, $desc_sev);
-
-		}elsif($line =~ /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/){
-			my $ip = $&;
-			my $host = "?";
-			my $user = "?";
-
-			my $desc;
-			my $desc_sev;
-
-			if("$parts[$off + 1] $parts[$off + 2]" eq "Connection closed"){
-				$desc = "eof";
-				$desc_sev = SEV_DISCONNECT;
-			}elsif($parts[$off + 1] eq "Disconnected"){
-				my $user = $parts[$off + 4];
-				$desc = "disconnect:$user";
-				$desc_sev = SEV_DISCONNECT_POSTAUTH;
-			}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Invalid user"){
-				my $user = $parts[$off + 3];
-				$desc = "invalid:$user";
-				$desc_sev = SEV_LOGIN_ATTEMPT;
-			}elsif(
-				join(" ", @parts[$off + 1 .. $off + 4]) eq "PAM 1 more authentication" ||
-				$parts[$off + 1] eq "pam_unix(sshd:auth):"
-			){
-				my %pam = (
-					tty => "<unknown>",
-					user => "<unknown>",
-				);
-				for my $eq (@parts[$off + 4 .. $#parts]){
-					if($eq =~ /(.*)=(.*)/){
-						$pam{$1} = $2;
-					}
-				}
-				$desc = "pam:$pam{tty},$pam{user}";
-				$desc_sev = SEV_LOGIN_ATTEMPT;
-			}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Received disconnect"){
-				$desc = "disconnect-no-user";
-				$desc_sev = SEV_DISCONNECT;
-			}elsif("$parts[$off + 1] $parts[$off + 2]" eq "banner exchange:"){
-				$desc = "banner-exchange";
-				$desc_sev = SEV_PROTO_MISMATCH;
-			}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Connection reset"){
-				$desc = "conn-reset";
-				$desc_sev = SEV_DISCONNECT;
-			}elsif("$parts[$off + 1] $parts[$off + 2] $parts[$off + 3] $parts[$off + 4]" eq "Unable to negotiate with"){
-				$desc = "negotiation-fail";
-				$desc_sev = SEV_PROTO_MISMATCH;
-			}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Server listening"){
-				next;
-			}else{
-				$desc = "unknown ($parts[$off + 1] $parts[$off + 2])";
-				$desc_sev = SEV_UNKNOWN;
-			}
-
-			add_fail("ssh", $ip, $host, $user, $timestamp, $desc, $desc_sev);
+		my $off = 2;
+		if($parts[$off] =~ '^sshd'){
+			$found_openssh = 1;
+			parse_openssh($off, $line, @parts);
 		}
 	}
 
-	if(!$found){
+	if(!$found_openssh){
 		warn "$0: no sshd entries found in `auth.log`s!\n"
+	}
+}
+
+sub parse_openssh {
+	# old format:
+	# Oct 20 10:10:10 <host> sshd[pid]: Accepted publickey for <user> from <ip> port <port> <proto>: <key-type> SHA256:<key>
+	# 0   1  2        3      4          5        6         7   8      9    10   11   12     13       14         15
+	# Sep 11 10:10:10 <host> sshd[pid]: Failed password for <user> from <ip> port <port> <proto>
+	# 0   1  2        3      4          5      6        7   8      9    10   11   12     13
+	# Dec 13 08:05:46 <host> sshd[pid]: Failed password for invalid user <user> from <ip> port <port> <proto>
+	# 0   1  2        3      4          5      6        7   8       9    10     11   12   13   14     15
+	# Dec 13 08:05:46 <host> sshd[pid]: (Bad|Did not|Invalid|Protocol|Unable)
+	# 0   1  2        3      4          5
+	# May 24 02:01:52 <host> sshd[pid]: Bad protocol version identification '\003' from 141.98.9.13 port 64384
+	# 0   1  2        3      4          5
+
+	# new format:
+	# 2024-04-28T09:00:00.000000+00:00 <host> sshd[pid]: Accepted publickey for <user> from <ip> port <port> <proto>: <key-type> SHA256:<key>
+	my ($off, $line, @parts) = @_;
+
+	(my $when = $parts[0]) =~ s/\.\d+\+\S*//; # ditch ms & tz
+	my $timestamp = parse_time("%Y-%m-%dT%H:%M:%S", $when);
+	if($timestamp > $today){
+		$timestamp = $timestamp->add_years(-1);
+	}
+
+	if($parts[$off + 1] eq "Accepted"){
+		my $ip = $parts[$off + 6];
+		add_auth($ip, "ssh");
+	}elsif($parts[$off + 1] eq "Failed"){
+		my $ip;
+		my $host = $parts[$off + -1];
+		my $user;
+
+		if($parts[$off + 4] eq "invalid" && $parts[$off + 5] eq "user") {
+			$ip = $parts[$off + 8];
+			$user = $parts[$off + 6];
+		} else {
+			$ip = $parts[$off + 6];
+			$user = $parts[$off + 4];
+		}
+
+		my $desc = "invalid user/pw";
+		my $desc_sev = SEV_LOGIN_ATTEMPT;
+
+		add_fail("ssh", $ip, $host, $user, $timestamp, $desc, $desc_sev);
+
+	}elsif($line =~ /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/){
+		my $ip = $&;
+		my $host = "?";
+		my $user = "?";
+
+		my $desc;
+		my $desc_sev;
+
+		if("$parts[$off + 1] $parts[$off + 2]" eq "Connection closed"){
+			$desc = "eof";
+			$desc_sev = SEV_DISCONNECT;
+		}elsif($parts[$off + 1] eq "Disconnected"){
+			my $user = $parts[$off + 4];
+			$desc = "disconnect:$user";
+			$desc_sev = SEV_DISCONNECT_POSTAUTH;
+		}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Invalid user"){
+			my $user = $parts[$off + 3];
+			$desc = "invalid:$user";
+			$desc_sev = SEV_LOGIN_ATTEMPT;
+		}elsif(
+			join(" ", @parts[$off + 1 .. $off + 4]) eq "PAM 1 more authentication" ||
+			$parts[$off + 1] eq "pam_unix(sshd:auth):"
+		){
+			my %pam = (
+				tty => "<unknown>",
+				user => "<unknown>",
+			);
+			for my $eq (@parts[$off + 4 .. $#parts]){
+				if($eq =~ /(.*)=(.*)/){
+					$pam{$1} = $2;
+				}
+			}
+			$desc = "pam:$pam{tty},$pam{user}";
+			$desc_sev = SEV_LOGIN_ATTEMPT;
+		}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Received disconnect"){
+			$desc = "disconnect-no-user";
+			$desc_sev = SEV_DISCONNECT;
+		}elsif("$parts[$off + 1] $parts[$off + 2]" eq "banner exchange:"){
+			$desc = "banner-exchange";
+			$desc_sev = SEV_PROTO_MISMATCH;
+		}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Connection reset"){
+			$desc = "conn-reset";
+			$desc_sev = SEV_DISCONNECT;
+		}elsif("$parts[$off + 1] $parts[$off + 2] $parts[$off + 3] $parts[$off + 4]" eq "Unable to negotiate with"){
+			$desc = "negotiation-fail";
+			$desc_sev = SEV_PROTO_MISMATCH;
+		}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Server listening"){
+			next;
+		}else{
+			$desc = "unknown ($parts[$off + 1] $parts[$off + 2])";
+			$desc_sev = SEV_UNKNOWN;
+		}
+
+		add_fail("ssh", $ip, $host, $user, $timestamp, $desc, $desc_sev);
 	}
 }
 
