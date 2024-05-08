@@ -326,7 +326,7 @@ sub parse_openssh {
 			$desc = "negotiation-fail";
 			$desc_sev = SEV_PROTO_MISMATCH;
 		}elsif("$parts[$off + 1] $parts[$off + 2]" eq "Server listening"){
-			next;
+			return;
 		}else{
 			$desc = "unknown ($parts[$off + 1] $parts[$off + 2])";
 			$desc_sev = SEV_UNKNOWN;
