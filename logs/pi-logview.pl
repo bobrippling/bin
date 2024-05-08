@@ -489,6 +489,33 @@ sub parse_http_1 {
 	}
 }
 
+sub parse_knockd {
+	my @contents = file_contents(
+		'/var/log/knockd.log',
+		'/var/log/knockd.log.1',
+		glob('/var/log/knockd.log.[12345].gz'),
+	);
+	my $found = 0;
+
+	for(@contents){
+		next unless /^\[(\S+ \S+)\] (\S+): \S+: (Stage [123]$|OPEN SESAME)/;
+		my ($time, $ip, $what) = ($1, $2, $3);
+
+		if($what =~ /Stage 3$|OPEN SESAME$/){
+			add_auth($ip, "knockd");
+		}elsif($what =~ /Stage 1$/){
+			# ignore
+		}else{
+			my $timestamp = parse_time("%Y-%m-%d %H:%M", $time);
+			add_fail("knockd", $ip, undef, undef, $timestamp, undef, SEV_UNKNOWN);
+		}
+
+		$found = 1;
+	}
+
+	warn "$0: no knockd entries found!\n" unless $found;
+}
+
 sub parse_fail2bans_slow {
 	if(open(my $fh, '-|', '/usr/local/bin/doas /usr/bin/fail2ban-client-su banned')){
 		chomp(my $json = join ",", <$fh>);
@@ -674,6 +701,7 @@ debug_time("parse cfg", sub { %cfg = read_cfg() });
 
 debug_time("parse ssh", \&parse_ssh);
 debug_time("parse http", \&parse_http);
+debug_time("parse knockd", \&parse_knockd);
 parse_banned();
 
 if($filter_cidr){
