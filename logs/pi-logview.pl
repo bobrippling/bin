@@ -497,12 +497,21 @@ sub parse_http_1 {
 	}
 }
 
-sub parse_knockd {
-	my @contents = file_contents(
-		'/var/log/knockd.log',
-		'/var/log/knockd.log.1',
-		glob('/var/log/knockd.log.[12345].gz'),
+sub knockd_log_paths {
+	my($all) = @_;
+	return (
+			'/var/log/knockd.log',
+			'/var/log/knockd.log.1',
+			glob(
+				$all
+				? '/var/log/knockd.log.[0-9].gz'
+				: '/var/log/knockd.log.[12345].gz'
+			),
 	);
+}
+
+sub parse_knockd {
+	my @contents = file_contents(knockd_log_paths(0));
 	my $found = 0;
 
 	for(@contents){
@@ -666,6 +675,7 @@ sub show_verbose {
 		$ip,
 		nginx_log_paths(1),
 		auth_log_paths(1),
+		knockd_log_paths(0), # 0 is intended here
 	);
 
 	system("$cmd | sed 's/^/\t/'");
