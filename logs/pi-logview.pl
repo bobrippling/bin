@@ -413,16 +413,18 @@ sub nginx_log_paths {
 
 	my %paths;
 
-	if(-e '/var/log/nginx/access.log'){
-		%paths = (
-			'/var/log/nginx/access.log' => 1,
-			'/var/log/nginx/access.log.1' => 1,
-			'/var/log/nginx/access.log.2.gz' => 1,
-		);
+	%paths = (
+		'/var/log/nginx/access.log' => 1,
+		'/var/log/nginx/access.log.1' => 1,
+		'/var/log/nginx/access.log.2.gz' => 1,
+	);
 
-		if($all){
-			$paths{$_} = 1 for glob '/var/log/nginx/access.log.[0-9]*.gz';
-		}
+	if($all){
+		$paths{$_} = 1 for glob '/var/log/nginx/access.log.[0-9]*.gz';
+	}
+
+	for(keys %paths){
+		delete $paths{$_} unless -e $paths{$_};
 	}
 
 	outer:
