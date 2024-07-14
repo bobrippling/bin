@@ -269,8 +269,8 @@ sub parse_dropbear {
 	if($parts[$#parts] =~ /(.*):(\d+)$/){
 		$ip = $1;
 		$port = $2;
-	}elsif($line =~ /<(\d[^>]*):(\d+)>/){
-		$ip = $1;
+	}elsif($line =~ /<(\d[^>]*|[0-9:]+):(\d+)>:/){
+		$ip = $1; #$ipv6 = 1 if $ip =~ /:/;
 		$port = $2;
 		if(!defined($user) && $line =~ /user '([^']+)'/){
 			$user = $1;
