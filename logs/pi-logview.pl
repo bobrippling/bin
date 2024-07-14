@@ -296,7 +296,7 @@ sub parse_dropbear {
 		return if $msg =~ /^Running in background/;
 
 		if(!defined($ip)){
-			warn "$0: unknown line with no IP: \"$msg\"\n";
+			warn "$0: unknown dropbear auth-log line with no IP: \"$msg\"\n";
 			return;
 		}
 
