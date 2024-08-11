@@ -580,7 +580,7 @@ sub parse_fail2bans_slow {
 		$json =~ s/'//g;
 
 		my @ips = grep { length } split /,+/, $json;
-		push @fail2banned, map { s/^ *//; s/ *$//; $_ } @ips;
+		push @fail2banned, map { s/^ *//; s/ *$//; IpAddr->parse($_) } @ips;
 	}else{
 		@fail2banned = ();
 		warn "$0: couldn't get fail2ban IPs";
@@ -630,7 +630,7 @@ sub parse_banned {
 				parse_fail2bans_slow();
 			}else{
 				warn "$0: \"$cachepath\" still relevant, using\n" if $debug;
-				@fail2banned = map { chomp; $_ } <$fh>;
+				@fail2banned = map { chomp; IpAddr->parse($_) } <$fh>;
 			}
 			close $fh;
 		}else{
@@ -643,54 +643,14 @@ sub parse_banned {
 	debug_time("parse fail2bans", \&parse_fail2bans);
 }
 
-sub ip_to_hex {
-	my $s = shift;
-
-	if(index($s, ":") >= 0){
-		warn "$0: skipping IPv6 address (\"$s\")\n" if $debug;
-		return 0
-	}
-
-	# ipv4
-	if(index($s, '.') == -1){
-		# already a number
-		return $s;
-	}
-	return hex(join("", map { sprintf "%02x", $_ } split(/\./, $s)));
-}
-
-sub cidr_match {
-	my($cidr, $candidate) = @_; # (string, string|number)
-
-	my($addr, $mask);
-	if($cidr =~ m@(.*)/(.*)@){
-		$addr = $1;
-		$mask = $2;
-	}else{
-		$addr = $cidr;
-		$mask = 32;
-	}
-	my $shift = 32 - $mask;
-
-	# addr: string -> number
-	my $addr_hex = ip_to_hex($addr);
-	my $addr_hex_shifted = $addr_hex >> $shift;
-
-	$candidate = ip_to_hex($candidate);
-	my $candidate_shifted = $candidate >> $shift;
-
-	return $addr_hex_shifted == $candidate_shifted;
-}
-
 sub banned_type {
 	my $ip = shift;
-	my $ip_hex = ip_to_hex($ip);
 
 	for my $entry (@banned){
-		return 1 if cidr_match($entry, $ip_hex);
+		return 1 if $ip->matches_cidr($entry);
 	}
 	for my $entry (@fail2banned){
-		return 2 if $entry eq $ip;
+		return 2 if $ip->eq($entry);
 	}
 	return 0;
 }
@@ -749,6 +709,70 @@ sub read_cfg {
 	return %cfg;
 }
 
+package IpAddr {
+	use overload '""' => \&stringify; # package-local
+
+	sub parse {
+		my ($pkg, $s) = @_;
+
+		# ipv6
+		if(index($s, ":") >= 0){
+			return bless {
+				type => 6,
+				orig => $s,
+			};
+		}
+
+		return bless {
+			type => 4,
+			orig => $s,
+			val => hex(join("", map { sprintf "%02x", $_ } split(/\./, $s))),
+		};
+	}
+
+	sub matches_cidr {
+		my($self, $cidr) = @_; # (_, string)
+
+		my $cidr_type = $cidr =~ /:/ ? 6 : 4;
+		return 0 if $cidr_type != $self->{type};
+		my $addrlen = $self->{type} == 4 ? 32 : 128;
+
+		die "ipv6" if $cidr_type == 6;
+
+		my($addr, $mask);
+		if($cidr =~ m@(.*)/(.*)@){
+			$addr = $1;
+			$mask = $2;
+		}else{
+			$addr = $cidr;
+			$mask = $addrlen;
+		}
+		my $shift = $addrlen - $mask;
+
+		# addr: string -> number
+		# FIXME: ipv4 specific
+		my $addr_hex = IpAddr->parse($addr)->{val};
+		my $addr_hex_shifted = $addr_hex >> $shift;
+
+		my $self_shifted = $self->{val} >> $shift;
+
+		return $addr_hex_shifted == $self_shifted;
+	}
+
+	sub eq {
+		my ($self, $other) = @_;
+
+		# FIXME: ipv6
+		return $self->{type} == $other->{type} && $self->{val} == $other->{val};
+	}
+
+	sub stringify {
+		my($self) = @_;
+
+		return $self->{orig};
+	}
+}
+
 $cachepath = path_cache("pi-logview.cache");
 
 debug_time("parse cfg", sub { %cfg = read_cfg() });
@@ -762,7 +786,8 @@ parse_banned();
 if($filter_cidr){
 	my $found = 0;
 	for my $ip (keys %ip_records){
-		next unless cidr_match($filter_cidr, $ip);
+		$ip = IpAddr->parse($ip);
+		next unless $ip->matches_cidr($filter_cidr);
 		$found = 1;
 
 		my $rec = $ip_records{$ip};
