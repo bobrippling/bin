@@ -535,6 +535,42 @@ sub parse_knockd {
 	warn "$0: no knockd entries found!\n" unless $found;
 }
 
+sub parse_podsync {
+	my @paths = (
+		'/var/log/podsync/podsync.log',
+		'/var/log/podsync/podsync.log.1',
+		glob('/var/log/podsync/podsync.log.[0-9]*.gz'),
+	);
+	my @contents = file_contents(@paths);
+	my $found = 0;
+
+	for(@contents){
+		next unless /^\s*(\S+)\s[^>]*> (.*)/;
+		my ($what, $rest) = ($1, $2);
+
+		my $ip;
+		my $port;
+		my $time;
+		if($rest =~ m%(\S+):(\d+) (\d+-\d+\S*T\S+)\s%){
+			$ip = $1;
+			$port = $2;
+			$time = $3;
+		}
+
+		if($what eq 'INFO'){
+			# ignore
+			add_auth($ip, "podsync") if defined $ip;
+		}else{
+			my $timestamp = defined($time) ? parse_time("%Y-%m-%dT%H:%M:%SZ", $time) : undef;
+			add_fail("podsync", $ip, undef, undef, $timestamp, undef, SEV_UNKNOWN);
+		}
+
+		$found = 1;
+	}
+
+	warn "$0: no podsync entries found!\n" unless $found;
+}
+
 sub parse_fail2bans_slow {
 	if(open(my $fh, '-|', '/usr/local/bin/doas /usr/bin/fail2ban-client-su banned')){
 		chomp(my $json = join ",", <$fh>);
@@ -720,6 +756,7 @@ debug_time("parse cfg", sub { %cfg = read_cfg() });
 debug_time("parse ssh", \&parse_ssh);
 debug_time("parse http", \&parse_http);
 debug_time("parse knockd", \&parse_knockd);
+debug_time("parse podsync", \&parse_podsync);
 parse_banned();
 
 if($filter_cidr){
