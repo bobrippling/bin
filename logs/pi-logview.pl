@@ -728,10 +728,17 @@ package IpAddr {
 			my $orig = $s;
 			if($colon_cnt != 8){
 				my $replace = ":" x (8 - $colon_cnt + 1);
+				#print "padding \"$s\" to ";
 				$s =~ s/::/$replace/;
+				#print "\"$s\"\n";
 			}
 
 			my @u16s = map { oct($_ ? "0x$_" : 0) } split(/:/, $s);
+
+			#print
+			#	"parsed $orig into: "
+			#	. join(":", map { sprintf "%x", $_ } @u16s)
+			#	. "\n";
 
 			return bless {
 				type => 6,
@@ -774,6 +781,8 @@ package IpAddr {
 			# shift is in bits, we compare u16s
 			my $last_u16_index = 8 - $shift / 16;
 
+			#print "  # shift = $shift\n";
+			#print "  # last_u16_index = $last_u16_index (max = 8)\n";
 			for(my $i = 0; $i < $last_u16_index; $i++){
 				# final (subset) of bits?
 				if($i + 1 >= $last_u16_index){
@@ -781,9 +790,22 @@ package IpAddr {
 					my $self_u16 = $self_u16s[$i] & $mask;
 					my $cidr_u16 = $cidr_u16s[$i] & $mask;
 
+					#printf
+					#	"  # %#x == %#x ?\n"
+					#	. "  # mask=%#x from: shift=$shift\n"
+					#	. "  # --> %#x == %#x\n"
+					#	,
+					#	$self_u16s[$i],
+					#	$cidr_u16s[$i],
+					#	$mask,
+					#	$self_u16,
+					#	$cidr_u16,
+					#	;
+
 					return 0 unless $self_u16 == $cidr_u16;
 				}else{
 					return 0 unless $self_u16s[$i] == $cidr_u16s[$i];
+					#printf "  # %#x == %#x\n", $self_u16s[$i], $cidr_u16s[$i];
 				}
 			}
 
