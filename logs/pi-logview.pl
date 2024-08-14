@@ -709,6 +709,10 @@ sub read_cfg {
 	return %cfg;
 }
 
+sub unreachable {
+	die "unreachable"
+}
+
 package IpAddr {
 	use overload '""' => \&stringify; # package-local
 
@@ -717,9 +721,22 @@ package IpAddr {
 
 		# ipv6
 		if(index($s, ":") >= 0){
+			# parse [::1] and ::1
+			$s =~ s/^\[(.*)\]$/$1/;
+
+			my $colon_cnt = ((my $discard = $s) =~ s/://g);
+			my $orig = $s;
+			if($colon_cnt != 8){
+				my $replace = ":" x (8 - $colon_cnt + 1);
+				$s =~ s/::/$replace/;
+			}
+
+			my @u16s = map { oct($_ ? "0x$_" : 0) } split(/:/, $s);
+
 			return bless {
 				type => 6,
-				orig => $s,
+				orig => $orig,
+				u16s => \@u16s,
 			};
 		}
 
@@ -737,33 +754,70 @@ package IpAddr {
 		return 0 if $cidr_type != $self->{type};
 		my $addrlen = $self->{type} == 4 ? 32 : 128;
 
-		die "ipv6" if $cidr_type == 6;
-
-		my($addr, $mask);
+		my($cidr_addr, $mask);
 		if($cidr =~ m@(.*)/(.*)@){
-			$addr = $1;
+			$cidr_addr = $1;
 			$mask = $2;
 		}else{
-			$addr = $cidr;
+			$cidr_addr = $cidr;
 			$mask = $addrlen;
 		}
 		my $shift = $addrlen - $mask;
 
-		# addr: string -> number
-		# FIXME: ipv4 specific
-		my $addr_hex = IpAddr->parse($addr)->{val};
-		my $addr_hex_shifted = $addr_hex >> $shift;
+		if($self->{type} == 6){
+			$cidr_addr = IpAddr->parse($cidr_addr);
+			unreachable() if $cidr_addr->{type} != 6;
 
-		my $self_shifted = $self->{val} >> $shift;
+			my @self_u16s = @{$self->{u16s}};
+			my @cidr_u16s = @{$cidr_addr->{u16s}};
 
-		return $addr_hex_shifted == $self_shifted;
+			# shift is in bits, we compare u16s
+			my $last_u16_index = 8 - $shift / 16;
+
+			for(my $i = 0; $i < $last_u16_index; $i++){
+				# final (subset) of bits?
+				if($i + 1 >= $last_u16_index){
+					my $mask = ~0 << $shift;
+					my $self_u16 = $self_u16s[$i] & $mask;
+					my $cidr_u16 = $cidr_u16s[$i] & $mask;
+
+					return 0 unless $self_u16 == $cidr_u16;
+				}else{
+					return 0 unless $self_u16s[$i] == $cidr_u16s[$i];
+				}
+			}
+
+			return 1;
+
+		}elsif($self->{type} == 4){
+			my $cidr_addr_hex = IpAddr->parse($cidr_addr)->{val};
+			my $cidr_addr_hex_shifted = $cidr_addr_hex >> $shift;
+
+			my $self_shifted = $self->{val} >> $shift;
+
+			return $cidr_addr_hex_shifted == $self_shifted;
+		}else{
+			unreachable();
+		}
 	}
 
 	sub eq {
 		my ($self, $other) = @_;
 
-		# FIXME: ipv6
-		return $self->{type} == $other->{type} && $self->{val} == $other->{val};
+		return 0 unless $self->{type} == $other->{type};
+
+		return $self->{val} == $other->{val} if $self->{type} == 4;
+
+		if($self->{type} == 6){
+			my @a = @{$self->{u16s}};
+			my @b = @{$other->{u16s}};
+			for(my $i = 0; $i < @a; $i++){
+				return 0 unless $a[$i] == $b[$i];
+			}
+			return 1;
+		}
+
+		unreachable();
 	}
 
 	sub stringify {
