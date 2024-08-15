@@ -801,6 +801,13 @@ package IpAddr {
 }
 
 package IpCidr {
+	use overload '""' => \&stringify; # package-local
+
+	sub stringify {
+		my($self) = @_;
+		return "$self->{addr}/$self->{mask}";
+	}
+
 	sub parse {
 		my ($pkg, $s) = @_;
 
