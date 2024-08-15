@@ -194,15 +194,28 @@ sub debug_time {
 	print STDERR "$0: ${diff}ms for $name\n";
 }
 
+sub ip_record {
+	my $ip = shift();
+
+	my $obj = IpAddr->parse($ip);
+	my $canon = $obj->{canon};
+
+	if(!exists $ip_records{$canon}){
+		$ip_records{$canon} = { parsed => $obj };
+	}
+
+	return $ip_records{$canon};
+}
+
 sub add_auth {
 	my($ip, $type) = @_;
-	$ip_records{$ip}->{authed}->{$type}++;
+	ip_record($ip)->{authed}->{$type}++;
 }
 
 sub add_fail {
 	my ($type, $ip, $host, $user, $timestamp, $desc, $desc_sev) = @_;
 
-	push @{$ip_records{$ip}->{fails}}, {
+	push @{ip_record($ip)->{fails}}, {
 		type => $type,
 		host => $host,
 		user => $user,
@@ -740,17 +753,24 @@ package IpAddr {
 			#	. join(":", map { sprintf "%x", $_ } @u16s)
 			#	. "\n";
 
+			# canon isn't the easiest to read, but it's only used for hash lookup
+			my $canon = join(":", map { sprintf "%x", $_ } @u16s);
+
 			return bless {
 				type => 6,
 				orig => $orig,
 				u16s => \@u16s,
+				canon => $canon,
 			};
 		}
+
+		my @octets = split(/\./, $s);
 
 		return bless {
 			type => 4,
 			orig => $s,
-			val => hex(join("", map { sprintf "%02x", $_ } split(/\./, $s))),
+			val => hex(join("", map { sprintf "%02x", $_ } @octets)),
+			canon => join(".", map { sprintf "%d", $_ } @octets),
 		};
 	}
 
@@ -862,11 +882,10 @@ parse_banned();
 if($filter_cidr){
 	my $found = 0;
 	for my $ip (keys %ip_records){
-		$ip = IpAddr->parse($ip);
+		my $rec = $ip_records{$ip};
+		$ip = $ip_records{$ip}->{parsed};
 		next unless $ip->matches_cidr($filter_cidr);
 		$found = 1;
-
-		my $rec = $ip_records{$ip};
 
 		my($ban_col, $ban_name) = ban_desc($ip);
 
@@ -912,22 +931,23 @@ if($filter_cidr){
 }
 
 if($verbose){
-	for my $ip (keys %ip_records) {
-		my $rec = $ip_records{$ip};
+	for my $ip_canon (keys %ip_records) {
+		my $rec = $ip_records{$ip_canon};
 		if ($rec->{authed}) {
 			my $n = 0;
 			for my $type (keys %{$rec->{authed}}){
 				$n += $rec->{authed}->{$type};
 			}
 			my $types = join(", ", keys %{$rec->{authed}});
-			print "$colours{ip}$ip$colours{off} authed, $n accesses over $colours{types}$types$colours{off}\n";
+			print "$colours{ip}$rec->{parsed}$colours{off} authed, $n accesses over $colours{types}$types$colours{off}\n";
 		}
 	}
 }
 
 my @sorted;
-for my $ip (keys %ip_records) {
-	my $rec = $ip_records{$ip};
+for my $ip_canon (keys %ip_records) {
+	my $rec = $ip_records{$ip_canon};
+	my $ip = $rec->{parsed};
 
 	next if $rec->{authed};
 
