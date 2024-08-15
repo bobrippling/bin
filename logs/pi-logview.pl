@@ -619,7 +619,7 @@ sub parse_banned {
 	sub parse_pi_bans {
 		for(file_contents("/etc/pi-bans")){
 			s/\s*#.*//;
-			push @banned, $_ if length;
+			push @banned, IpCidr->parse($_) if length;
 		}
 	}
 
@@ -660,7 +660,7 @@ sub banned_type {
 	my $ip = shift;
 
 	for my $entry (@banned){
-		return 1 if $ip->matches_cidr($entry);
+		return 1 if $entry->matches_ip($ip);
 	}
 	for my $entry (@fail2banned){
 		return 2 if $ip->eq($entry);
@@ -774,75 +774,6 @@ package IpAddr {
 		};
 	}
 
-	sub matches_cidr {
-		my($self, $cidr) = @_; # (_, string)
-
-		my $cidr_type = $cidr =~ /:/ ? 6 : 4;
-		return 0 if $cidr_type != $self->{type};
-		my $addrlen = $self->{type} == 4 ? 32 : 128;
-
-		my($cidr_addr, $mask);
-		if($cidr =~ m@(.*)/(.*)@){
-			$cidr_addr = $1;
-			$mask = $2;
-		}else{
-			$cidr_addr = $cidr;
-			$mask = $addrlen;
-		}
-		my $shift = $addrlen - $mask;
-
-		if($self->{type} == 6){
-			$cidr_addr = IpAddr->parse($cidr_addr);
-			unreachable() if $cidr_addr->{type} != 6;
-
-			my @self_u16s = @{$self->{u16s}};
-			my @cidr_u16s = @{$cidr_addr->{u16s}};
-
-			# shift is in bits, we compare u16s
-			my $last_u16_index = 8 - $shift / 16;
-
-			#print "  # shift = $shift\n";
-			#print "  # last_u16_index = $last_u16_index (max = 8)\n";
-			for(my $i = 0; $i < $last_u16_index; $i++){
-				# final (subset) of bits?
-				if($i + 1 >= $last_u16_index){
-					my $mask = ~0 << $shift;
-					my $self_u16 = $self_u16s[$i] & $mask;
-					my $cidr_u16 = $cidr_u16s[$i] & $mask;
-
-					#printf
-					#	"  # %#x == %#x ?\n"
-					#	. "  # mask=%#x from: shift=$shift\n"
-					#	. "  # --> %#x == %#x\n"
-					#	,
-					#	$self_u16s[$i],
-					#	$cidr_u16s[$i],
-					#	$mask,
-					#	$self_u16,
-					#	$cidr_u16,
-					#	;
-
-					return 0 unless $self_u16 == $cidr_u16;
-				}else{
-					return 0 unless $self_u16s[$i] == $cidr_u16s[$i];
-					#printf "  # %#x == %#x\n", $self_u16s[$i], $cidr_u16s[$i];
-				}
-			}
-
-			return 1;
-
-		}elsif($self->{type} == 4){
-			my $cidr_addr_hex = IpAddr->parse($cidr_addr)->{val};
-			my $cidr_addr_hex_shifted = $cidr_addr_hex >> $shift;
-
-			my $self_shifted = $self->{val} >> $shift;
-
-			return $cidr_addr_hex_shifted == $self_shifted;
-		}else{
-			unreachable();
-		}
-	}
-
 	sub eq {
 		my ($self, $other) = @_;
 
@@ -869,6 +800,91 @@ package IpAddr {
 	}
 }
 
+package IpCidr {
+	sub parse {
+		my ($pkg, $s) = @_;
+
+		my $type = $s =~ /:/ ? 6 : 4;
+		my $addrlen = $type == 6 ? 128 : 32;
+
+		my($cidr_addr, $mask);
+		if($s =~ m@(.*)/(.*)@){
+			$cidr_addr = $1;
+			$mask = $2;
+		}else{
+			$cidr_addr = $s;
+			$mask = $addrlen;
+		}
+
+		return bless {
+			addr => IpAddr->parse($cidr_addr),
+			mask => $mask,
+			type => $type,
+		};
+	}
+
+	sub matches_ip {
+		my($self, $addr) = @_; # (Self, IpAddr)
+
+		return 0 if $self->{type} != $addr->{type};
+
+		my $addrlen = $addr->{type} == 4 ? 32 : 128;
+
+		my $mask = $self->{mask};
+		my $shift = $addrlen - $mask;
+
+		if($addr->{type} == 6){
+			unreachable() if $self->{type} != 6;
+
+			my @addr_u16s = @{$addr->{u16s}};
+			my @cidr_u16s = @{$self->{addr}->{u16s}};
+
+			# shift is in bits, we compare u16s
+			my $last_u16_index = 8 - $shift / 16;
+
+			#print "  # shift = $shift\n";
+			#print "  # last_u16_index = $last_u16_index (max = 8)\n";
+			for(my $i = 0; $i < $last_u16_index; $i++){
+				# final (subset) of bits?
+				if($i + 1 >= $last_u16_index){
+					my $mask = ~0 << $shift;
+					my $addr_u16 = $addr_u16s[$i] & $mask;
+					my $cidr_u16 = $cidr_u16s[$i] & $mask;
+
+					#printf
+					#	"  # %#x == %#x ?\n"
+					#	. "  # mask=%#x from: shift=$shift\n"
+					#	. "  # --> %#x == %#x\n"
+					#	,
+					#	$addr_u16s[$i],
+					#	$cidr_u16s[$i],
+					#	$mask,
+					#	$addr_u16,
+					#	$cidr_u16,
+					#	;
+
+					return 0 unless $addr_u16 == $cidr_u16;
+				}else{
+					return 0 unless $addr_u16s[$i] == $cidr_u16s[$i];
+					#printf "  # %#x == %#x\n", $addr_u16s[$i], $cidr_u16s[$i];
+				}
+			}
+
+			return 1;
+
+		}elsif($addr->{type} == 4){
+			my $cidr_addr_hex = $self->{addr}->{val};
+			my $cidr_addr_hex_shifted = $cidr_addr_hex >> $shift;
+
+			my $addr_shifted = $addr->{val} >> $shift;
+
+			return $cidr_addr_hex_shifted == $addr_shifted;
+		}else{
+			unreachable();
+		}
+	}
+}
+
 $cachepath = path_cache("pi-logview.cache");
 
 debug_time("parse cfg", sub { %cfg = read_cfg() });
@@ -880,11 +896,12 @@ debug_time("parse podsync", \&parse_podsync);
 parse_banned();
 
 if($filter_cidr){
+	my $filter_cidr_parsed = IpCidr->parse($filter_cidr);
 	my $found = 0;
 	for my $ip (keys %ip_records){
 		my $rec = $ip_records{$ip};
 		$ip = $ip_records{$ip}->{parsed};
-		next unless $ip->matches_cidr($filter_cidr);
+		next unless $filter_cidr_parsed->matches_ip($ip);
 		$found = 1;
 
 		my($ban_col, $ban_name) = ban_desc($ip);
