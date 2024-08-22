@@ -1,0 +1,56 @@
+#!/bin/sh
+
+set -e
+
+usage(){
+    echo >&2 "Usage: $0 app file"
+    echo >&2
+    echo >&2 "e.g. $0 \"TextEdit\" keys.txt"
+    echo >&2 "file will be transferred as base64"
+    exit 2
+}
+
+if test $# -ne 2
+then usage
+fi
+if echo "$1" | grep -q '^-'
+then usage
+fi
+
+t=/tmp/sendkeys.$$
+trap 'rm -f "$t"' EXIT
+
+delay=0.002
+
+base64 <"$2" >"$t"
+
+osascript <<!
+set filePath to "$t"
+
+on readFile(filePath)
+    set fileContents to ""
+    try
+        set fileRef to open for access POSIX file filePath
+        set fileContents to read fileRef
+        close access fileRef
+    on error errMsg
+        display dialog "Error reading file: " & errMsg
+    end try
+    return fileContents
+end readFile
+
+set keystrokeData to readFile(filePath)
+
+set appName to "$1"
+
+tell application appName
+    activate
+end tell
+
+tell application "System Events"
+    repeat with thisChar in (characters of keystrokeData)
+        keystroke thisChar
+        delay $delay
+    end repeat
+end tell
+!
