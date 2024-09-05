@@ -191,7 +191,7 @@ sub debug_time {
 	$f->(@args);
 	my $fin = gettimeofday();
 	my $diff = sprintf("%.3f", $fin - $now);
-	print STDERR "$0: ${diff}ms for $name\n";
+	print STDERR "$0: ${diff}s for $name\n";
 }
 
 sub ip_record {
