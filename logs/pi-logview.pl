@@ -955,17 +955,27 @@ if($filter_cidr){
 }
 
 if($verbose){
+	my @auths;
 	for my $ip_canon (keys %ip_records) {
 		my $rec = $ip_records{$ip_canon};
 		if ($rec->{authed}) {
 			my $n = 0;
+			my $latest = 0;
 			for my $type (keys %{$rec->{authed}}){
 				$n += $rec->{authed}->{$type};
+				if($rec->{})
 			}
 			my $types = join(", ", keys %{$rec->{authed}});
-			print "$colours{ip}$rec->{parsed}$colours{off} authed, $n accesses over $colours{types}$types$colours{off}\n";
+			my $desc = "$colours{ip}$rec->{parsed}$colours{off} authed, $n accesses over $colours{types}$types$colours{off}";
+			push @auths, {
+				desc => $desc,
+				#earliest => $earliest,
+				latest => $latest,
+			};
 		}
 	}
+
+	print "$_\n" for map { $_->{desc} } sort { $a->{latest} <=> $b->{latest} } @auths;
 }
 
 my @sorted;
