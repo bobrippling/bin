@@ -37,7 +37,12 @@ then
 	fi
 fi
 
-n=$(grep --count '^Delivery-date:' /var/mail/"$w" || true)
+p=/var/mail/"$w"
+if ! test -e "$p"
+then exit 0
+fi
+
+n=$(grep --count '^Delivery-date:' "$p" || true)
 if test $count_only -eq 1
 then
 	echo "$n"
