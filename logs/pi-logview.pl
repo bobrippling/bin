@@ -973,6 +973,8 @@ for my $ip_canon (keys %ip_records) {
 	my $rec = $ip_records{$ip_canon};
 	my $ip = $rec->{parsed};
 
+	# this means if there's an auth via the same protocol, we ignore
+	# if there's an auth on one protocol, but a fail on another, we don't ignore
 	next if $rec->{authed};
 
 	my %types;
