@@ -27,14 +27,14 @@ do_x11(){
 	fi
 }
 
-sync=0
+sync=false
 case $# in
 	0)
 		;;
 	1)
 		case "$1" in
 			--sync)
-				sync=1
+				sync=true
 				;;
 			--no-sync|--agents-only)
 				;;
@@ -49,7 +49,7 @@ case $# in
 esac
 
 clear_agents
-if test $sync -ne 0
+if $sync
 then do_sync
 fi
 do_x11
