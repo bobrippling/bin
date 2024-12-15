@@ -9,6 +9,7 @@ usage(){
 	exit 2
 }
 
+echo=
 if test "$1" = -n
 then
 	shift
@@ -36,6 +37,7 @@ window_is_auto_named(){
 restore(){
 	windows=
 	sessions=
+	first=true
 
 	case "$#" in
 		0)
@@ -61,6 +63,7 @@ restore(){
 			args=(-c "$wd")
 			name_arg=()
 			split=false
+			use_cur=false
 
 			if ! echo "$name" | grep '^>' >/dev/null
 			then
@@ -90,9 +93,23 @@ restore(){
 			if $split || echo "$windows" | grep -Fx "$path" >/dev/null
 			then
 				if ! $split
-				then echo "[*] window $path exists, splitting"
+				then
+					if $first && test -n "$TMUX"
+					then
+						first=false
+						echo "[*] window $path exists, and we're in tmux - using this pane"
+						use_cur=true
+					else
+						echo "[*] window $path exists, splitting"
+					fi
 				fi
-				$echo tmux split-window -d -t "$path" "${args[@]}"
+				if $use_cur
+				then
+					$echo cd "$wd"
+					test -z "$echo" && echo "[>] cd \"$wd\""
+				else
+					$echo tmux split-window -d -t "$path" "${args[@]}"
+				fi
 				if test -n "$name_arg" && window_is_auto_named "$path"
 				then
 					$echo tmux rename-window -t "$path" "$name"
