@@ -568,6 +568,9 @@ sub parse_podsync {
 			$ip = $1;
 			$port = $2;
 			$time = $3;
+		}else{
+			#warn "couldn't parse IP out of podsync line \"$rest\"";
+			next;
 		}
 
 		if($what eq 'INFO'){
