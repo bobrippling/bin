@@ -26,7 +26,7 @@ sub usage {
 }
 
 my $verbose = 0;
-my $debug = 0;
+my $debug = defined $ENV{DEBUG};
 my $filter_cidr;
 for(my $i = 0; $i < @ARGV; $i++){
 	$_ = $ARGV[$i];
