@@ -3,7 +3,7 @@
 usage(){
 	echo >&2 "Usage: $0 path/to/exe [args...]"
 	echo >&2 "- Any arguments that exist will be watched for changes"
-	exit 1
+	exit 2
 }
 
 printf '%s\n' "$@" | stest -e | entr -rc "$@"
