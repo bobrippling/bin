@@ -26,7 +26,7 @@ sub usage {
 }
 
 my $verbose = 0;
-my $debug = 0;
+my $debug = defined $ENV{DEBUG};
 my $filter_cidr;
 for(my $i = 0; $i < @ARGV; $i++){
 	$_ = $ARGV[$i];
@@ -568,6 +568,9 @@ sub parse_podsync {
 			$ip = $1;
 			$port = $2;
 			$time = $3;
+		}else{
+			#warn "couldn't parse IP out of podsync line \"$rest\"";
+			next;
 		}
 
 		if($what eq 'INFO'){
@@ -973,6 +976,8 @@ for my $ip_canon (keys %ip_records) {
 	my $rec = $ip_records{$ip_canon};
 	my $ip = $rec->{parsed};
 
+	# this means if there's an auth via the same protocol, we ignore
+	# if there's an auth on one protocol, but a fail on another, we don't ignore
 	next if $rec->{authed};
 
 	my %types;

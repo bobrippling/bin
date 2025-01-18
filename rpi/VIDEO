@@ -21,6 +21,9 @@ if(@ARGV == 0){
 }
 
 for(@ARGV){
-	system("omxplayer", "--key-config", $key_conf, "-o", "hdmi", @opts, $_);
+	my $status = system("omxplayer", "--key-config", $key_conf, "-o", "hdmi", @opts, $_);
 	# TODO? grep for "Current Volume: -6.00dB" and adjust next one
+
+	my $ec = $status >> 8;
+	exit $ec if $ec;
 }
