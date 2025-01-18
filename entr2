@@ -6,4 +6,9 @@ usage(){
 	exit 2
 }
 
+if test $# -eq 0
+then usage
+fi
+case "$1" in -*) usage ;; esac
+
 printf '%s\n' "$@" | stest -e | entr -rc "$@"
