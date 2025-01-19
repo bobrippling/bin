@@ -1,30 +1,50 @@
 #!/bin/sh
 
+set -e
+
 usage(){
-	echo >&2 "Usage: $0 [--percent]"
+	echo >&2 "Usage: $0 [--percent] [--state] [--raw]"
 	exit 2
 }
 
 os=$(uname -s)
 case "$os" in
 	Darwin)
-		case $# in
-			0)
-				pmset -g batt
-				;;
-			1)
-				if test "$1" = --percent
-				then pmset -g batt | sed -n '2s/.*	\([0-9]*%\).*/\1/p'
-				else usage
-				fi
-				;;
-			*)
-				usage
-				;;
-		esac
+		raw(){
+			pmset -g batt
+		}
+		default(){
+			echo "$(state) $(pct)"
+		}
+		pct(){
+			pmset -g batt | sed -n '2s/.*	\([0-9]*%\).*/\1/p'
+		}
+		state(){
+			if pmset -g ac | grep 'No adapter' >/dev/null
+			then echo batt
+			else echo power
+			fi
+		}
 		;;
 	*)
 		echo >&2 "$0: unknown OS \"$os\""
 		exit 1
+		;;
+esac
+
+case $# in
+	0)
+		default
+		;;
+	1)
+		case "$1" in
+			--percent) pct ;;
+			--state) state ;;
+			--raw) raw ;;
+			*) usage ;;
+		esac
+		;;
+	*)
+		usage
 		;;
 esac
