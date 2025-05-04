@@ -791,7 +791,7 @@ package IpAddr {
 			return 1;
 		}
 
-		unreachable();
+		::unreachable();
 	}
 
 	sub stringify {
@@ -842,7 +842,7 @@ package IpCidr {
 		my $shift = $addrlen - $mask;
 
 		if($addr->{type} == 6){
-			unreachable() if $self->{type} != 6;
+			::unreachable() if $self->{type} != 6;
 
 			my @addr_u16s = @{$addr->{u16s}};
 			my @cidr_u16s = @{$self->{addr}->{u16s}};
@@ -888,7 +888,7 @@ package IpCidr {
 
 			return $cidr_addr_hex_shifted == $addr_shifted;
 		}else{
-			unreachable();
+			::unreachable();
 		}
 	}
 }
