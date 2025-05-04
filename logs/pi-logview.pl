@@ -458,7 +458,7 @@ sub nginx_log_paths {
 			$paths{$_} = 1 for @ents;
 		}else{
 			for(@ents){
-				$paths{$_} = 1 if /\.log(\.(1|2\.gz))?$/;
+				$paths{$_} = 1 if /\.log(\.(1|2)(\.gz)?)?$/;
 			}
 		}
 	}
