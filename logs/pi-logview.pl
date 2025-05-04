@@ -126,7 +126,7 @@ sub path_config {
 
 	for(@paths){
 		if(-e $_){
-			warn "$0: found config @ \"$_\"\n" if $debug;
+			warn "$0: config @ \"$_\"\n" if $debug;
 			return $_
 		}
 	}
