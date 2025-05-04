@@ -424,9 +424,7 @@ sub nginx_log_paths {
 	my($all) = @_;
 	my $silence_skip = $all;
 
-	my %paths;
-
-	%paths = (
+	my %paths = (
 		'/var/log/nginx/access.log' => 1,
 		'/var/log/nginx/access.log.1' => 1,
 		'/var/log/nginx/access.log.2.gz' => 1,
