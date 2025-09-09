@@ -528,12 +528,12 @@ sub parse_knockd {
 	my $found = 0;
 
 	for(@contents){
-		next unless /^\[(\S+ \S+)\] (\S+): \S+: (Stage [123]$|OPEN SESAME)/;
-		my ($time, $ip, $what) = ($1, $2, $3);
+		next unless /^\[(\S+ \S+)\] (\S+): \S+: (Stage (\d+)$|OPEN SESAME)/;
+		my ($time, $ip, $what, $stage) = ($1, $2, $3, $4);
 
 		if($what =~ /Stage 3$|OPEN SESAME$/){
 			add_auth($ip, "knockd");
-		}elsif($what =~ /Stage 1$/){
+		}elsif($stage == 1){
 			# ignore
 		}else{
 			my $timestamp = parse_time("%Y-%m-%d %H:%M", $time);
