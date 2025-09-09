@@ -532,7 +532,12 @@ sub parse_knockd {
 		my ($time, $ip, $what, $stage) = ($1, $2, $3, $4);
 
 		if($what =~ /OPEN SESAME$/){
-			add_auth($ip, "knockd");
+			#add_auth($ip, "knockd");
+			my $timestamp = parse_time("%Y-%m-%d %H:%M", $time);
+			# assume all are fails unless auths appear on other services
+			# this avoids having to parse /etc/knockd.conf and fail for sequences >= 50% progressed
+
+			add_fail("knockd (open)", $ip, undef, undef, $timestamp, undef, SEV_UNKNOWN);
 		}elsif($stage == 1){
 			# ignore
 		}else{
