@@ -531,7 +531,7 @@ sub parse_knockd {
 		next unless /^\[(\S+ \S+)\] (\S+): \S+: (Stage (\d+)$|OPEN SESAME)/;
 		my ($time, $ip, $what, $stage) = ($1, $2, $3, $4);
 
-		if($what =~ /Stage 3$|OPEN SESAME$/){
+		if($what =~ /OPEN SESAME$/){
 			add_auth($ip, "knockd");
 		}elsif($stage == 1){
 			# ignore
