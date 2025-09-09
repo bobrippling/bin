@@ -542,6 +542,7 @@ sub knockd_log_paths {
 sub parse_knockd {
 	my @contents = file_contents(knockd_log_paths(0));
 	my $found = 0;
+	my %entries; # $ip => { $stage, $timestamp, $sev }
 
 	for(@contents){
 		next unless /^\[(\S+ \S+)\] (\S+): \S+: (Stage (\d+)$|OPEN SESAME)/;
@@ -549,19 +550,29 @@ sub parse_knockd {
 
 		if($what =~ /OPEN SESAME$/){
 			#add_auth($ip, "knockd");
-			my $timestamp = parse_time("%Y-%m-%d %H:%M", $time);
 			# assume all are fails unless auths appear on other services
 			# this avoids having to parse /etc/knockd.conf and fail for sequences >= 50% progressed
 
-			add_fail("knockd (open)", $ip, undef, undef, $timestamp, undef, SEV_UNKNOWN);
+			$entries{$ip}->{stage} = "open";
+			$entries{$ip}->{ts_str} = $time;
+			$entries{$ip}->{sev} = SEV_LOGIN_ATTEMPT;
 		}elsif($stage == 1){
 			# ignore
 		}else{
-			my $timestamp = parse_time("%Y-%m-%d %H:%M", $time);
-			add_fail("knockd", $ip, undef, undef, $timestamp, undef, SEV_UNKNOWN);
+			my $cur = $entries{$ip}->{stage};
+			if(!defined $cur || (!($cur eq "open") && $cur < $stage)){
+				$entries{$ip}->{stage} = $stage;
+				$entries{$ip}->{ts_str} = $time;
+				$entries{$ip}->{sev} = SEV_UNKNOWN;
+			}
 		}
 
 		$found = 1;
+	}
+
+	while(my ($ip, $details) = each %entries){
+		my $timestamp = parse_time("%Y-%m-%d %H:%M", $details->{ts_str});
+		add_fail("knockd stage $details->{stage}", $ip, undef, undef, $timestamp, undef, $details->{sev});
 	}
 
 	warn "$0: no knockd entries found!\n" unless $found;
