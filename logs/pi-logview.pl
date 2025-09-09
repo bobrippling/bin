@@ -941,11 +941,12 @@ if($filter_cidr){
 			my $when = timestamp_to_approx($fail->{timestamp});
 			my $host = $fail->{host} || "<nohost>";
 			my $user = $fail->{user} || "<none>";
+			my $desc = $fail->{desc} || "<no desc>";
 
 			print "\t$when: $colours{types}$fail->{type}$colours{off} "
 			. "failure from $host, "
 			. "user $user "
-			. "($colours{severity}$fail->{desc}$colours{off})\n";
+			. "($colours{severity}$desc$colours{off})\n";
 		}
 
 		show_verbose($ip);
