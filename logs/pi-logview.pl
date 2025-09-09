@@ -242,6 +242,7 @@ sub parse_authlog {
 	my @contents = file_contents(auth_log_paths(0));
 	my $found_openssh = 0;
 	my $found_dropbear = 0;
+	my $found_sslh = 0;
 
 	for my $line (@contents){
 		my @parts = split /\s+/, $line;
@@ -253,11 +254,26 @@ sub parse_authlog {
 		}elsif($parts[$off] =~ /^dropbear/){
 			$found_dropbear = 1;
 			parse_dropbear($off, $line, @parts);
+		}elsif($parts[$off] =~ /^sslh/){
+			$found_sslh = 1;
+			my $rest = join(" ", @parts[3 .. $#parts]);
+
+			if($rest =~ /^(\S+) from (\S+):(\S+) to (\S+):(\S+)/){
+				my($desc, $from, $pfrom, $to, $tto) = ($1, $2, $3, $4, $5);
+				(my $timestamp_str = $parts[0]) =~ s/\.\d+\+\d+:\d+$//;
+				my $timestamp = parse_time("%Y-%m-%dT%H:%M:%S", $timestamp_str);
+
+				# assume all are fails unless auths appear on other services
+				add_fail("sslh", $from, undef, undef, $timestamp, $desc, SEV_UNKNOWN);
+			}else{
+				#warn "$0: couldn't parse sslh line \"$rest\"";
+			}
 		}
 	}
 
 	warn "$0: no sshd entries found in `auth.log`s!\n" unless $found_openssh;
 	warn "$0: no dropbear entries found in `auth.log`s!\n" unless $found_dropbear;
+	warn "$0: no sslh entries found in `auth.log`s!\n" unless $found_sslh;
 }
 
 sub parse_auth_timestamp {
