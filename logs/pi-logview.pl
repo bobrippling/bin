@@ -723,6 +723,16 @@ sub read_cfg {
 	return %cfg;
 }
 
+sub show_auth_summary {
+	my $rec = shift;
+	my $n = 0;
+	for my $type (keys %{$rec->{authed}}){
+		$n += $rec->{authed}->{$type};
+	}
+	my $types = join(", ", keys %{$rec->{authed}});
+	print "$colours{ip}$rec->{parsed}$colours{off} authed, $n accesses over $colours{types}$types$colours{off}\n";
+}
+
 sub unreachable {
 	die "unreachable"
 }
@@ -959,14 +969,7 @@ if($filter_cidr){
 if($verbose){
 	for my $ip_canon (keys %ip_records) {
 		my $rec = $ip_records{$ip_canon};
-		if ($rec->{authed}) {
-			my $n = 0;
-			for my $type (keys %{$rec->{authed}}){
-				$n += $rec->{authed}->{$type};
-			}
-			my $types = join(", ", keys %{$rec->{authed}});
-			print "$colours{ip}$rec->{parsed}$colours{off} authed, $n accesses over $colours{types}$types$colours{off}\n";
-		}
+		show_auth_summary($rec) if $rec->{authed};
 	}
 }
 
