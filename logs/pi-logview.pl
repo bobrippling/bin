@@ -238,7 +238,7 @@ sub auth_log_paths {
 	);
 }
 
-sub parse_ssh {
+sub parse_authlog {
 	my @contents = file_contents(auth_log_paths(0));
 	my $found_openssh = 0;
 	my $found_dropbear = 0;
@@ -897,7 +897,7 @@ $cachepath = path_cache("pi-logview.cache");
 
 debug_time("parse cfg", sub { %cfg = read_cfg() });
 
-debug_time("parse ssh", \&parse_ssh);
+debug_time("parse auth (ssh, dropbear, sslh)", \&parse_authlog);
 debug_time("parse http", \&parse_http);
 debug_time("parse knockd", \&parse_knockd);
 debug_time("parse podsync", \&parse_podsync);
