@@ -928,7 +928,10 @@ if($filter_cidr){
 		. ($ban_col ? " $ban_col($ban_name)$colours{off}" : "")
 		. ":\n";
 
-		print "\tauthed\n" if $rec->{authed};
+		if($rec->{authed}){
+			print "\t";
+			show_auth_summary($rec);
+		}
 
 		my @sorted = sort {
 			$a->{timestamp} <=> $b->{timestamp}
