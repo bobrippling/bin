@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 usage(){
 	echo >&2 "Usage: $0 [-n] [-p] [-u file]"
 	echo >&2 " -p: dump processes too"
