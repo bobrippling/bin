@@ -7,7 +7,7 @@ usage(){
 	echo >&2 " -p: dump processes too"
 	echo >&2 " -u: show update compared to file"
 	echo >&2
-	echo >&2 "Usage: $0 restore <file>"
+	echo >&2 "Usage: $0 restore [-n] <file>"
 	exit 2
 }
 
