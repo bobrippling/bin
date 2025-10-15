@@ -1,0 +1,41 @@
+#!/bin/sh
+
+usage(){
+	echo >&2 "Usage: $0 [-i...] source target"
+	exit 2
+}
+
+is_flag(){
+	echo "$1" | grep -q '^-'
+}
+
+case $# in
+	2)
+		flags=
+		src=$1
+		targ=$2
+		;;
+	3)
+		if ! is_flag "$1"
+		then usage
+		fi
+		flags=$1
+		src=$2
+		targ=$3
+		;;
+	*)
+		usage
+		;;
+esac
+
+if is_flag "$src" || is_flag "$targ"
+then usage
+fi
+
+mv "$flags" "$src" "$targ"
+
+if test -d "$targ"
+then targ="$targ/$(basename "$src")"
+fi
+
+ln -s "$targ" "$src"
