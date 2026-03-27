@@ -90,7 +90,7 @@ restore(){
 			then windows=$(tmux lsw -F '#{session_name}:#{window_index}')
 			fi
 
-			echo "[*] creating pane @ $path called \"$name\" in \`$wd\`"
+			echo "[*] creating pane @ $path called \"$name\" in \`$wd\`$(if $split; then echo " (splitting)"; fi)"
 			if $split || echo "$windows" | grep -Fx "$path" >/dev/null
 			then
 				if ! $split
