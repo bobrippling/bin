@@ -13,27 +13,35 @@
 # pmset disksplaysleep <n>
 
 usage(){
-	echo >&2 "Usage: $0 [--screen] [cmd [args...]]"
+	echo >&2 "Usage: $0 [--screen] [--user] [cmd [args...]]"
 	echo >&2 "  --screen: keep screen on"
+	echo >&2 "  --user: user activity"
 	exit 2
 }
 
-mode=-i
-if test $# -eq 0
-then
-	:
-else
+screen=false
+user=false
+while test $# -ne 0; do
 	case "$1" in
 		--screen)
+			screen=true
 			shift
-			mode=-id
+			;;
+		--user)
+			user=true
+			shift
 			;;
 		-*)
 			usage
 			;;
 		*)
+			break
 			;;
 	esac
-fi
+done
+
+mode=-i
+$screen && mode="${mode}d"
+$user && mode="${mode}u"
 
 exec caffeinate "$mode" "$@"
