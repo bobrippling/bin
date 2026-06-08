@@ -18,6 +18,14 @@ then
 	echo='echo %'
 fi
 
+col_hl=
+col_off=
+if test -t 1
+then
+	col_hl=$(printf '\x1b[34m')
+	col_off=$(printf '\x1b[0m')
+fi
+
 window_name(){
 	# $1 = path
 	tmux list-windows -F '#{session_name}:#{window_index} #{window_name}' \
@@ -107,7 +115,7 @@ restore(){
 				if $use_cur
 				then
 					$echo cd "$wd"
-					test -z "$echo" && echo "[>] cd \"$wd\""
+					test -z "$echo" && echo "[>] ${col_hl}cd \"$wd\"${col_off}"
 				else
 					$echo tmux split-window -d -t "$path" "${args[@]}"
 				fi
