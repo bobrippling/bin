@@ -1,0 +1,33 @@
+#!/bin/sh
+
+set -e
+
+usage(){
+	echo >&2 "Usage: $0 matcher"
+	exit 2
+}
+
+if test $# -ne 1 || echo "$1" | grep -q '^-'
+then usage
+fi
+
+matcher="$1"
+
+found=$(tmux lsw -F '#I #W' | grep " .*$matcher")
+nfound=$(echo "$found" | wc -l)
+
+case $nfound in
+	0)
+		echo >&2 "$0: no matches for /$matcher/"
+		exit 1
+		;;
+	1)
+		index=$(echo "$found" | sed 's/ .*//')
+		tmux select-window -t "$index"
+		;;
+	*)
+		echo >&2 "$0: too many matches for /$matcher/:"
+		echo "$found" | sed 's/^[^ ]* /  /' >&2
+		exit 1
+		;;
+esac
