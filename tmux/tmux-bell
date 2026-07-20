@@ -1,0 +1,18 @@
+#!/bin/sh
+
+set -e
+
+usage(){
+	echo >&2 "Usage: $0 window-id"
+	exit 2
+}
+
+if test $# -ne 1 || echo "$1" | grep -q '^-'
+then usage
+fi
+
+id="$1"
+
+tty=$(tmux display-message -t "$id".0 -p "#{pane_tty}")
+
+printf '\a' >"$tty"
