@@ -23,6 +23,40 @@ case "$os" in
 			fi
 		}
 		;;
+	Linux)
+		raw(){
+			/bin/acpi
+		}
+		_populate(){
+			read _name _battno state pct _time _remaining <<-!
+			$(raw)
+			!
+
+			state=$(echo "$state" | tr -d ,)
+			pct=$(echo "$pct" | tr -d ,)
+
+			case "$state" in
+				Discharging)
+					state=discharging
+					;;
+				charging)
+					state=charging
+					;;
+				*)
+					echo >&2 "$0: unknown state \"$state\""
+					exit 3
+					;;
+			esac
+		}
+		pct(){
+			_populate
+			echo "$pct"
+		}
+		state(){
+			_populate
+			echo "$state"
+		}
+		;;
 	*)
 		echo >&2 "$0: unknown OS \"$os\""
 		exit 1
