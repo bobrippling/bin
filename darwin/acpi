@@ -32,14 +32,14 @@ case "$os" in
 			$(raw)
 			!
 
-			state=$(echo "$state" | tr -d ,)
+			state=$(echo "$state" | tr -d , | tr A-Z a-z)
 			pct=$(echo "$pct" | tr -d ,)
 
 			case "$state" in
-				Discharging)
+				discharging)
 					state=discharging
 					;;
-				charging)
+				charging|full)
 					state=charging
 					;;
 				*)
