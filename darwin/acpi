@@ -37,10 +37,10 @@ case "$os" in
 
 			case "$state" in
 				discharging)
-					state=discharging
+					state=batt
 					;;
 				charging|full)
-					state=charging
+					state=power
 					;;
 				*)
 					echo >&2 "$0: unknown state \"$state\""
