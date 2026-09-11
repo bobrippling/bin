@@ -14,7 +14,7 @@ fi
 matcher="$1"
 
 found=$(tmux lsw -F '#I #W' | grep " .*$matcher")
-nfound=$(echo "$found" | wc -l)
+nfound=$(echo "$found" | wc -l | tr -d ' ')
 
 case $nfound in
 	0)
