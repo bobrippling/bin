@@ -1,13 +1,20 @@
 #!/bin/sh
 
 usage(){
-	echo >&2 "Usage: $0 [-i...] source target"
+	echo >&2 "Usage: $0 [--dry] [-i...] source target"
 	exit 2
 }
 
 is_flag(){
 	echo "$1" | grep -q '^-'
 }
+
+echo=
+if test "$1" = --dry
+then
+	echo=echo
+	shift
+fi
 
 case $# in
 	2)
@@ -37,5 +44,5 @@ then link_targ="$targ/$(basename "$src")"
 else link_targ="$targ"
 fi
 
-mv "$flags" "$src" "$targ"
-ln -s "$link_targ" "$src"
+$echo mv "$flags" "$src" "$targ"
+$echo ln -s "$link_targ" "$src"
