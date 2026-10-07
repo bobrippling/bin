@@ -1,0 +1,3 @@
+#!/bin/sh
+
+exec yt-dlp -f "bestvideo+bestaudio[language=en] / bv+ba" -S +size --merge-output-format mp4 "$@"
