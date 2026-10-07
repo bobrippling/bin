@@ -32,10 +32,10 @@ if is_flag "$src" || is_flag "$targ"
 then usage
 fi
 
-mv "$flags" "$src" "$targ"
-
 if test -d "$targ"
-then targ="$targ/$(basename "$src")"
+then link_targ="$targ/$(basename "$src")"
+else link_targ="$targ"
 fi
 
-ln -s "$targ" "$src"
+mv "$flags" "$src" "$targ"
+ln -s "$link_targ" "$src"
